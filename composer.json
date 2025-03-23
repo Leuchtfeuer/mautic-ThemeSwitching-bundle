@@ -1,0 +1,17 @@
+{
+  "name": "leuchtfeuer/mautic-themeswitching-bundle",
+  "description": "Allows MJML Theme switching without losing all content by introducing markers",
+  "type": "mautic-plugin",
+  "license": "GPL-3.0",
+  "authors": [
+    {
+      "name": "Leuchtfeuer Digital Marketing GmbH",
+      "email": "mautic-plugins@Leuchtfeuer.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "MauticPlugin\\LeuchtfeuerThemeSwitchingBundle\\": ""
+    }
+  }
+}

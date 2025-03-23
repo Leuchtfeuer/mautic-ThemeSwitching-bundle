@@ -1,0 +1,35 @@
+services:
+  MauticPlugin\LeuchtfeuerThemeSwitchingBundle\EventListener\BuilderSubscriber:
+    arguments:
+      - '@mautic.factory'
+    tags:
+      - { name: 'kernel.event_subscriber' }
+
+  leuchtfeuer.themeswitching.service:
+    class: MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService
+    arguments:
+      - '@logger'
+      - '@parameter_bag'
+      - '@mautic.helper.core_parameters'
+
+  Mautic\EmailBundle\Controller\EmailController:
+    autowire: true
+    autoconfigure: false
+    public: true
+    arguments:
+      $themeSwitcher: '@leuchtfeuer.themeswitching.service'
+    calls:
+      - method: setContainer
+        arguments: ['@service_container']
+
+  MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Controller\ThemeSwitchingController: # Corrected name
+    public: true
+    autowire: true
+    autoconfigure: false
+    arguments:
+      $themeSwitcher: '@leuchtfeuer.themeswitching.service'
+    calls:
+      - method: setContainer
+        arguments: ['@service_container']
+
+

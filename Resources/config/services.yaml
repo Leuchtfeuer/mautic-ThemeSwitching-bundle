@@ -11,6 +11,8 @@ services:
       - '@logger'
       - '@parameter_bag'
       - '@mautic.helper.core_parameters'
+      - '@doctrine.orm.entity_manager'
+
 
   Mautic\EmailBundle\Controller\EmailController:
     autowire: true

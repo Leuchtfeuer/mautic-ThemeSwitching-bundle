@@ -170,22 +170,27 @@ class ThemeSwitchingService
 
     public function mergeMjml(string $oldMjml, string $newMjml, bool $translationMode): string
     {
-        // Extract new head
+        // Extract <mj-head> from new MJML theme
         preg_match('/<mj-head>(.*?)<\/mj-head>/s', $newMjml, $newHeadMatch);
         $newHead = $newHeadMatch[0] ?? '<mj-head></mj-head>';
 
-        // Extract old and new body content
+        // Extract full <mj-body> opening tag (with attributes) from new theme
+        preg_match('/<mj-body([^>]*)>/i', $newMjml, $bodyTagMatch);
+        $bodyAttributes = !empty($bodyTagMatch[1]) ? ' ' . $bodyTagMatch[1] : '';
+
+        // Extract body content (excluding opening/closing tags)
         preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
         preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $newMjml, $newBodyMatch);
 
         $oldBodyContent = $oldBodyMatch[1] ?? '';
         $newBodyContent = $newBodyMatch[1] ?? '';
 
-        // Split into segments
+        // Extract locked and unlocked blocks
         $oldSegments = $this->splitIntoSegments($oldBodyContent);
         $newLocked = $this->extractLockedSections($newBodyContent);
         $newUnlocked = trim($this->removeLockedSections($newBodyContent));
 
+        // Merge segments (locked and unlocked)
         $mergedSegments = [];
         $newLockedIndex = 0;
 
@@ -205,7 +210,7 @@ class ThemeSwitchingService
             }
         }
 
-        // Append remaining new LOCKED blocks
+        // Append any remaining locked blocks from new theme
         while ($newLockedIndex < count($newLocked)) {
             $mergedSegments[] = $newLocked[$newLockedIndex];
             $newLockedIndex++;
@@ -214,59 +219,14 @@ class ThemeSwitchingService
         // Combine segments
         $mergedBodyContent = implode("\n\n", $mergedSegments);
 
-        // Add new theme's unlocked content if not in translation mode
+        // If not translation mode, append theme's unlocked content at end
         if (!$translationMode && !empty($newUnlocked)) {
             $mergedBodyContent .= "\n\n" . $newUnlocked;
         }
 
-        // Rebuild MJML structure
-        return "<mjml>\n{$newHead}\n<mj-body>{$mergedBodyContent}</mj-body>\n</mjml>";
+        // Build final MJML with preserved <mj-body> attributes
+        return "<mjml>\n{$newHead}\n<mj-body{$bodyAttributes}>{$mergedBodyContent}</mj-body>\n</mjml>";
     }
-
-
-//    ####################  OLD ORIGINAL mergeMJML, is replacing locked portions but messes up order of non locked portions
-//    public function mergeMjml(string $oldMjml, string $newMjml, bool $translationMode): string
-//    {
-//        // Extract heads
-//        preg_match('/<mj-head>(.*?)<\/mj-head>/s', $newMjml, $newHeadMatch);
-//        $newHead = $newHeadMatch[0] ?? '<mj-head></mj-head>';
-//
-//        // Extract body wrapper
-////        preg_match('/<mj-body>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
-////        preg_match('/<mj-body>(.*?)<\/mj-body>/s', $newMjml, $newBodyMatch);
-//
-//        preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
-//        preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $newMjml, $newBodyMatch);
-//
-//
-//
-//        $oldBody = $oldBodyMatch[0] ?? '';
-//        $newBody = $newBodyMatch[0] ?? '';
-//
-//        $oldLocked = $this->extractLockedSections($oldBody);
-//        $newLocked = $this->extractLockedSections($newBody);
-//
-//        $oldUnlocked = trim($this->removeLockedSections($oldBody));
-//        $newUnlocked = trim($this->removeLockedSections($newBody));
-//
-//        $finalLocked = $this->replaceLockedSections($oldLocked, $newLocked);
-//
-//        $mergedBodyParts = [];
-//        $mergedBodyParts[] = implode("\n", $finalLocked);
-//
-//        if (!empty($oldUnlocked)) {
-//            $mergedBodyParts[] = $oldUnlocked;
-//        }
-//
-//        if (!$translationMode && !empty($newUnlocked)) {
-//            $mergedBodyParts[] = $newUnlocked;
-//        }
-//
-//        $mergedBody = '<mj-body>' . implode("\n\n", $mergedBodyParts) . '</mj-body>';
-//
-//        return "<mjml>\n{$newHead}\n{$mergedBody}\n</mjml>";
-//    }
-//
 
 
     /**

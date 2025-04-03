@@ -66,14 +66,26 @@ class ThemeSwitchingController extends CommonController
             : '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
 
         $this->logger->info('[ThemeSwitch] Merging MJML templates...');
-        $mergedHtml = $this->themeSwitcher->mergeMjmlTemplates(
+//        $mergedHtml = $this->themeSwitcher->mergeMjmlTemplates(
+//            $originalEmail->getCustomHtml(),
+//            $newThemeHtml,
+//            false
+//        );
+
+
+        $mergedHtml = $this->themeSwitcher->mergeMjml(
             $originalEmail->getCustomHtml(),
             $newThemeHtml,
             false
         );
 
-        $combinedHtml = $mergedHtml . "\n\n<!-- ORIGINAL CONTENT BELOW -->\n\n" . $email->getCustomHtml();
-        $email->setCustomHtml($combinedHtml);
+
+//        $combinedHtml = $mergedHtml . "\n\n<!-- ORIGINAL CONTENT BELOW -->\n\n" . $email->getCustomHtml();
+//        $email->setCustomHtml($combinedHtml);
+
+        $email->setCustomHtml($mergedHtml);
+
+
         $email->setTemplate($template);
 
         $this->logger->info('[ThemeSwitch] Saving updated email entity...', [

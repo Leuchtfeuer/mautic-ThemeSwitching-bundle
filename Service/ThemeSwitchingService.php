@@ -10,40 +10,29 @@ use Mautic\CoreBundle\Helper\CoreParametersHelper;
 
 use Doctrine\ORM\EntityManagerInterface;
 
+use Twig\Environment;
+
 class ThemeSwitchingService
 {
     private LoggerInterface $logger;
     private CoreParametersHelper $coreParameters;
     private EntityManagerInterface $doctrine;
 
+    private Environment $twig;
+
     public function __construct(
         LoggerInterface $logger,
         CoreParametersHelper $coreParameters,
-        EntityManagerInterface $doctrine
+        EntityManagerInterface $doctrine,
+        Environment $twig
     ) {
         $this->logger = $logger;
         $this->coreParameters = $coreParameters;
         $this->doctrine = $doctrine;
+        $this->twig = $twig;
     }
 
-    public function mergeMjmlTemplates(string $oldHtml, string $newHtml, bool $isTranslationMode): string
-    {
-        $this->logger->info('[ThemeSwitchingPlugin] Hooked into mergeMjmlTemplates.');
-        $this->logger->info('[ThemeSwitchingPlugin] Translation mode: ' . ($isTranslationMode ? 'yes' : 'no'));
 
-        return <<<HTML
-<mjml>
-  <mj-head><mj-title>Plugin Injected</mj-title></mj-head>
-  <mj-body>
-    <mj-section>
-      <mj-column>
-        <mj-text>🎉 ThemeSwitchingService was called!</mj-text>
-      </mj-column>
-    </mj-section>
-  </mj-body>
-</mjml>
-HTML;
-    }
 
     public function mergeAndSaveEmail(
         EmailModel $model,
@@ -60,79 +49,270 @@ HTML;
         $email = $model->getEntity($emailId);
         $originalEmail = $model->getEntity($originalEmailId);
 
-        if (!$email || !$originalEmail || !$originalEmail->getCustomHtml()) {
+        if (!$email || !$originalEmail) {
+            $this->logger->error('[ThemeSwitch] Invalid email entity.');
             return false;
         }
 
-        $themePath = $this->coreParameters->get('themes_path') . '/' . $template . '/html/email.html';
+        $connection = $this->doctrine->getConnection();
 
-        $newThemeHtml = file_exists($themePath)
-            ? file_get_contents($themePath)
-            : '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
+        // Get original MJML (base) and current MJML (to be updated)
+        $originalMjml = $connection->fetchOne('SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?', [$originalEmailId]);
+        $existingMjml = $connection->fetchOne('SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?', [$emailId]);
 
-        $mergedHtml = $this->mergeMjmlTemplates(
-            $originalEmail->getCustomHtml(),
+        if (!$originalMjml) {
+            $this->logger->error('[ThemeSwitch] Missing original MJML source.', ['originalEmailId' => $originalEmailId]);
+            return false;
+        }
+
+        // Get theme path with fallback
+        $themesPath = $this->coreParameters->get('themes_path') ?: '/var/www/html/themes';
+        $basePath = rtrim($themesPath, '/') . '/' . $template . '/html/';
+        $this->logger->info('[ThemeSwitch] Checking theme files in path:', ['basePath' => $basePath]);
+
+        // Try to list contents of the directory
+        if (is_dir($basePath)) {
+            $filesInDir = scandir($basePath);
+            $this->logger->info('[ThemeSwitch] Files found in theme html directory:', ['files' => $filesInDir]);
+        } else {
+            $this->logger->error('[ThemeSwitch] Theme html directory does not exist or is not a directory', ['basePath' => $basePath]);
+        }
+
+        // Look for theme file
+        $twigPath = $basePath . 'email.html.twig';
+        $htmlPath = $basePath . 'email.html';
+
+        if (file_exists($twigPath)) {
+            $themePathUsed = $twigPath;
+            $newThemeHtml = file_get_contents($twigPath);
+            $this->logger->info('[ThemeSwitch] Found MJML theme file (.twig)', ['path' => $twigPath]);
+        } elseif (file_exists($htmlPath)) {
+            $themePathUsed = $htmlPath;
+            $newThemeHtml = file_get_contents($htmlPath);
+            $this->logger->info('[ThemeSwitch] Found MJML theme file (.html)', ['path' => $htmlPath]);
+        } else {
+            $themePathUsed = null;
+            $newThemeHtml = '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
+            $this->logger->error('[ThemeSwitch] MJML theme file not found in either .twig or .html format', [
+                'checkedTwigPath' => $twigPath,
+                'checkedHtmlPath' => $htmlPath,
+            ]);
+        }
+
+
+        // Merge MJML using correct source
+        $mergedHtml = $this->mergeMjml(
+            $originalMjml,
             $newThemeHtml,
             $translationMode
         );
 
-        // Fetch existing MJML
-        $connection = $this->doctrine->getConnection();
-        $existing = $connection->fetchOne('SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?', [$emailId]);
+        // 1) Re‐parse Twig placeholders so images become real URLs:
+        $compiledHtml = $this->compileTwigMjml($mergedHtml, $template);
 
-        // Prepend new MJML to existing content
-        $combinedHtml = $mergedHtml . "\n\n<!-- Previous content below -->\n\n" . ($existing ?: '');
-
-        // Save updated MJML back to database
+        // 2) Save final compiled MJML (no placeholders!)
         $connection->update(
             'bundle_grapesjsbuilder',
-            ['custom_mjml' => $combinedHtml],
+            ['custom_mjml' => $compiledHtml],
             ['email_id' => $emailId]
         );
 
-        // Update email entity with new template
+
+
+        // Update email template assignment
         $email->setTemplate($template);
+
+        ###############REMOVE THIS LINE
+//        $email->setCustomHtml($compiledHtml);
+
         $model->saveEntity($email);
+
 
         return true;
     }
 
 
 
+    private function extractLockedSections(string $mjml): array
+    {
+        preg_match_all(
+            '/<!--\s*LOCKED_START\s*-->(.*?)<!--\s*LOCKED_END\s*-->/s',
+            $mjml,
+            $matches
+        );
+
+        return $matches[0]; // includes full LOCKED block (with comments)
+    }
 
 
-//    public function mergeAndSaveEmail(
-//        EmailModel $model,
-//                   $emailId,
-//                   $originalEmailId,
-//        string $template,
-//        bool $translationMode = false
-//    ): bool {
-//        $this->logger->info('[ThemeSwitch] mergeAndSaveEmail() reached.', [
-//            'emailId' => $emailId,
-//            'template' => $template,
-//        ]);
+    private function removeLockedSections(string $mjml): string
+    {
+        return preg_replace('/<!--\s*LOCKED_START\s*-->(.*?)<!--\s*LOCKED_END\s*-->/s', '', $mjml);
+    }
+
+
+    private function replaceLockedSections(array $oldBlocks, array $newBlocks): array
+    {
+        $merged = [];
+
+        $count = max(count($oldBlocks), count($newBlocks));
+        for ($i = 0; $i < $count; $i++) {
+            if (isset($newBlocks[$i])) {
+                $merged[] = $newBlocks[$i];
+            } elseif (isset($oldBlocks[$i])) {
+                $merged[] = $oldBlocks[$i];
+            }
+        }
+
+        return $merged;
+    }
+
+
+    public function mergeMjml(string $oldMjml, string $newMjml, bool $translationMode): string
+    {
+        // Extract new head
+        preg_match('/<mj-head>(.*?)<\/mj-head>/s', $newMjml, $newHeadMatch);
+        $newHead = $newHeadMatch[0] ?? '<mj-head></mj-head>';
+
+        // Extract old and new body content
+        preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
+        preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $newMjml, $newBodyMatch);
+
+        $oldBodyContent = $oldBodyMatch[1] ?? '';
+        $newBodyContent = $newBodyMatch[1] ?? '';
+
+        // Split into segments
+        $oldSegments = $this->splitIntoSegments($oldBodyContent);
+        $newLocked = $this->extractLockedSections($newBodyContent);
+        $newUnlocked = trim($this->removeLockedSections($newBodyContent));
+
+        $mergedSegments = [];
+        $newLockedIndex = 0;
+
+        foreach ($oldSegments as $segment) {
+            if ($segment['type'] === 'locked') {
+                // Replace with new theme's LOCKED block if available
+                if (isset($newLocked[$newLockedIndex])) {
+                    $mergedSegments[] = $newLocked[$newLockedIndex];
+                    $newLockedIndex++;
+                } else {
+                    // Keep original if no corresponding new LOCKED
+                    $mergedSegments[] = $segment['content'];
+                }
+            } else {
+                // Preserve unlocked content
+                $mergedSegments[] = $segment['content'];
+            }
+        }
+
+        // Append remaining new LOCKED blocks
+        while ($newLockedIndex < count($newLocked)) {
+            $mergedSegments[] = $newLocked[$newLockedIndex];
+            $newLockedIndex++;
+        }
+
+        // Combine segments
+        $mergedBodyContent = implode("\n\n", $mergedSegments);
+
+        // Add new theme's unlocked content if not in translation mode
+        if (!$translationMode && !empty($newUnlocked)) {
+            $mergedBodyContent .= "\n\n" . $newUnlocked;
+        }
+
+        // Rebuild MJML structure
+        return "<mjml>\n{$newHead}\n<mj-body>{$mergedBodyContent}</mj-body>\n</mjml>";
+    }
+
+
+//    ####################  OLD ORIGINAL mergeMJML, is replacing locked portions but messes up order of non locked portions
+//    public function mergeMjml(string $oldMjml, string $newMjml, bool $translationMode): string
+//    {
+//        // Extract heads
+//        preg_match('/<mj-head>(.*?)<\/mj-head>/s', $newMjml, $newHeadMatch);
+//        $newHead = $newHeadMatch[0] ?? '<mj-head></mj-head>';
 //
-//        $email = $model->getEntity($emailId);
-//        $originalEmail = $model->getEntity($originalEmailId);
+//        // Extract body wrapper
+////        preg_match('/<mj-body>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
+////        preg_match('/<mj-body>(.*?)<\/mj-body>/s', $newMjml, $newBodyMatch);
 //
-//        if (!$email || !$originalEmail || !$originalEmail->getCustomHtml()) {
-//            return false;
+//        preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
+//        preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $newMjml, $newBodyMatch);
+//
+//
+//
+//        $oldBody = $oldBodyMatch[0] ?? '';
+//        $newBody = $newBodyMatch[0] ?? '';
+//
+//        $oldLocked = $this->extractLockedSections($oldBody);
+//        $newLocked = $this->extractLockedSections($newBody);
+//
+//        $oldUnlocked = trim($this->removeLockedSections($oldBody));
+//        $newUnlocked = trim($this->removeLockedSections($newBody));
+//
+//        $finalLocked = $this->replaceLockedSections($oldLocked, $newLocked);
+//
+//        $mergedBodyParts = [];
+//        $mergedBodyParts[] = implode("\n", $finalLocked);
+//
+//        if (!empty($oldUnlocked)) {
+//            $mergedBodyParts[] = $oldUnlocked;
 //        }
 //
-//        $themePath = $this->coreParameters->get('themes_path') . '/' . $template . '/html/email.html';
+//        if (!$translationMode && !empty($newUnlocked)) {
+//            $mergedBodyParts[] = $newUnlocked;
+//        }
 //
-//        $newThemeHtml = file_exists($themePath)
-//            ? file_get_contents($themePath)
-//            : '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
+//        $mergedBody = '<mj-body>' . implode("\n\n", $mergedBodyParts) . '</mj-body>';
 //
-//        $mergedHtml = $this->mergeMjmlTemplates($originalEmail->getCustomHtml(), $newThemeHtml, $translationMode);
-//        $combinedHtml = $mergedHtml . "\n\n<!-- ORIGINAL CONTENT BELOW -->\n\n" . $email->getCustomHtml();
-//
-//        $email->setCustomHtml($combinedHtml);
-//        $email->setTemplate($template);
-//        $model->saveEntity($email);
-//
-//        return true;
+//        return "<mjml>\n{$newHead}\n{$mergedBody}\n</mjml>";
 //    }
+//
+
+
+    /**
+     * Render MJML/Twig placeholders into final HTML (or MJML) so images load.
+     *
+     * For example, transforms:
+     *   <img src="{{ getAssetUrl('themes/'~template~'/assets/logo.png') }}" />
+     * into something like:
+     *   <img src="/plugins/SomeBundle/themes/themeName/assets/logo.png" />
+     *
+     * or the absolute URL, depending on how Mautic’s getAssetUrl is configured.
+     */
+    private function compileTwigMjml(string $rawMjml, string $themeAlias = ''): string
+    {
+        try {
+            $templateObject = $this->twig->createTemplate($rawMjml);
+            return $templateObject->render([
+                'template' => $themeAlias,
+            ]);
+        } catch (\Exception $e) {
+            $this->logger->warning('[ThemeSwitch] Failed to compile twig placeholders: '.$e->getMessage());
+            return $rawMjml;
+        }
+    }
+
+
+    private function splitIntoSegments(string $bodyContent): array
+    {
+        $pattern = '/(<!--\s*LOCKED_START\s*-->.*?<!--\s*LOCKED_END\s*-->)|((?:(?!<!--\s*LOCKED_(?:START|END)\s*-->).)+)/s';
+        preg_match_all($pattern, $bodyContent, $matches, PREG_SET_ORDER);
+
+        $segments = [];
+        foreach ($matches as $match) {
+            if (!empty($match[1])) {
+                $segments[] = ['type' => 'locked', 'content' => $match[1]];
+            } elseif (!empty($match[2])) {
+                $content = trim($match[2]);
+                if (!empty($content)) {
+                    $segments[] = ['type' => 'unlocked', 'content' => $content];
+                }
+            }
+        }
+
+        return $segments;
+    }
+
+
+
 }

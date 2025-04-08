@@ -41,17 +41,36 @@ function showThemeSwitchModal(themeField, theme, $link) {
         const modal = document.createElement('div');
         modal.id = 'themeSwitchModal';
         modal.innerHTML = `
-            <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:#00000066;z-index:9999;display:flex;align-items:center;justify-content:center;">
-                <div style="background:white;padding:20px;border-radius:6px;text-align:center;min-width:300px;">
-                    <p><strong>Select Theme Switching Mode</strong></p>
-                    <button id="mergeBtn">Smart Merge</button>
-                    <button id="translationBtn">Translation Mode</button>
-                    <button id="mauticBtn">Mautic Default</button>
-                    <button id="cancelBtn">Cancel</button>
+            <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+                <div style="background:#ffffff;padding:24px 28px;border-radius:10px;text-align:center;min-width:380px;box-shadow:0 8px 24px rgba(0,0,0,0.15);font-family:system-ui, sans-serif;">
+                    <h3 style="margin-top:0;margin-bottom:14px;color:#3b3f5c;font-size:18px;font-weight:600;">🎨 Theme Switch</h3>
+                    <p style="margin-bottom:20px;color:#555;font-size:14px;">How would you like to apply the new theme?</p>
+                    
+                    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+                        <button id="mergeBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#4e73df;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🔧 Smart Merge</button>
+                        <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Translation Mode</button>
+                        <button id="mauticBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#f6c23e;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🧼 Mautic Default</button>
+                    </div>
+
+                    <button id="cancelBtn" style="padding:8px 12px;border:1px solid #ccc;border-radius:6px;background:transparent;color:#555;cursor:pointer;font-size:13px;transition:all 0.2s;">❌ Cancel</button>
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
+
+        // Hover effects
+        const hoverStyle = document.createElement('style');
+        hoverStyle.innerHTML = `
+            #themeSwitchModal button:hover {
+                filter: brightness(1.08);
+                transform: translateY(-1px);
+            }
+            #themeSwitchModal button:active {
+                filter: brightness(0.95);
+                transform: scale(0.98);
+            }
+        `;
+        document.head.appendChild(hoverStyle);
 
         // Hook up modal buttons
         mQuery('#mergeBtn').on('click', () => {
@@ -76,6 +95,7 @@ function showThemeSwitchModal(themeField, theme, $link) {
         });
     }
 }
+
 
 /**
  * Redirect to the builder with the appropriate parameters.

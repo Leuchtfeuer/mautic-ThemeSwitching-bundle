@@ -26,6 +26,8 @@ class ThemeSwitchingController extends CommonController
         $emailId         = $data['emailId'] ?? null;
         $template        = $data['template'] ?? null;
         $originalEmailId = $data['original'] ?? $emailId;
+        $translationMode = filter_var($data['translationMode'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
 
         if (!$emailId || !$template || !$originalEmailId) {
             $this->logger->error('[ThemeSwitch] Missing parameters', [
@@ -76,7 +78,7 @@ class ThemeSwitchingController extends CommonController
         $mergedHtml = $this->themeSwitcher->mergeMjml(
             $originalEmail->getCustomHtml(),
             $newThemeHtml,
-            false
+            $translationMode
         );
 
 

@@ -29,10 +29,37 @@ Mautic.initSelectTheme = function(themeField) {
         }
 
         // Show your custom confirm FIRST
-        const userWantsPlugin = confirm(
-            "Choose OK to use Leuchtfeuer's custom merging.\n" +
-            "Choose Cancel to proceed with Mautic's default warning and behavior."
+        const choice = prompt(
+            "Select Theme Switching Mode:\n" +
+            "1 = Smart Merge (default)\n" +
+            "2 = Translation Mode (keep content, just replace header/footer)\n" +
+            "3 = Mautic Default Behavior (lose all content)"
         );
+
+        if (choice === "1" || choice === "2") {
+            const useTranslation = (choice === "2");
+            const emailId = getEmailIdFromDomOrUrl();
+            if (!emailId) {
+                alert("Unable to find email ID.");
+                return;
+            }
+            const url = `/s/emails/builder/${emailId}`
+                + `?template=${theme}&original=${emailId}`
+                + `&usePluginMerge=true`
+                + (useTranslation ? '&translationMode=true' : '');
+
+            window.location.href = url;
+        } else if (choice === "3") {
+            // Trigger Mautic’s default behavior
+            defaultInitSelectTheme(themeField);
+            $links.off('click.leuchtfeuerChoice');
+            $link.trigger('click');
+        } else {
+            // User cancelled (clicked ESC or Cancel), do nothing
+            return;
+        }
+
+
 
         if (userWantsPlugin) {
             // --------------------------------------------------

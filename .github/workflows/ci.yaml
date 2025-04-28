@@ -1,0 +1,12 @@
+name: CI Workflow
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ai-review:
+    name: AI Code Review
+    uses: Leuchtfeuer/mautic-ci-runner/.github/workflows/ai_review.yaml@b1b1fdade7eed1e623d7e655f95662ca58d49c7e
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

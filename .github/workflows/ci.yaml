@@ -2,7 +2,7 @@ name: CI Workflow.
 
 on:
   pull_request:
-    types: [opened, reopened, edited, synchronize, review_requested]
+    types: [opened, reopened, synchronize, review_requested]
 
 jobs:
   ai-review:

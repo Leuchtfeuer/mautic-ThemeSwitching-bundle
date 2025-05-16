@@ -273,6 +273,13 @@ class ThemeSwitchingService
         return $segments;
     }
 
+    /**
+     * Check if a given string looks like MJML content.
+     */
+    public function isMjmlContent(string $html): bool
+    {
+        return stripos($html, '<mjml') !== false && stripos($html, '<mj-body') !== false;
+    }
 
 
 }

@@ -28,8 +28,29 @@ Mautic.initSelectTheme = function(themeField) {
             return;
         }
 
-        // Show our custom modal dialog
-        showThemeSwitchModal(themeField, theme, $link);
+        // // Show our custom modal dialog
+        // showThemeSwitchModal(themeField, theme, $link);
+
+        const emailId = getEmailIdFromDomOrUrl();
+        if (!emailId) {
+            alert("Unable to determine email ID.");
+            return;
+        }
+
+        fetchEmailTemplate(emailId).then(response => {
+            if (response.isCodemode) {
+                // Fall back to Mautic default behavior
+                defaultInitSelectTheme(themeField);
+                $link.off('click.leuchtfeuerChoice').trigger('click');
+                return;
+            }
+
+            // Otherwise, show our custom modal
+            showThemeSwitchModal(themeField, theme, $link);
+        });
+
+
+
     });
 };
 
@@ -129,6 +150,21 @@ function getEmailIdFromDomOrUrl() {
     }
     return null;
 }
+
+function fetchEmailTemplate(emailId) {
+    return fetch(`/plugin/theme-switch/email-type/${emailId}`)
+        .then(resp => {
+            if (!resp.ok) {
+                throw new Error(`Failed to fetch email info: HTTP ${resp.status}`);
+            }
+            return resp.json(); // return entire response, not just .template
+        })
+        .catch(err => {
+            console.error('[ThemeSwitch] Could not fetch template info:', err);
+            return { isCodemode: false, template: null }; // default fallback
+        });
+}
+
 
 
 // //#####################################################

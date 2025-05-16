@@ -6,6 +6,9 @@ return [
     'author'      => 'Leuchtfeuer Digital Marketing GmbH',
     'version'     => '1.0.0',
     'license'     => 'GPL-3.0',
+    'iconClass' => 'fa fa-retweet', // or any FA icon
+    'icon' => 'plugins/LeuchtfeuerThemeSwitchingBundle/Assets/img/LeuchtfeuerThemeSwitchingBundle.png',
+
 
     'routes' => [
         'main' => [ // we can also use public instead of main, but that is open to anyone

@@ -33,9 +33,12 @@ Mautic.initSelectTheme = function(themeField) {
 
         const emailId = getEmailIdFromDomOrUrl();
         if (!emailId) {
-            alert("Unable to determine email ID.");
+            // No email ID (first save), so use Mautic default theme picker
+            defaultInitSelectTheme(themeField);
+            $link.off('click.leuchtfeuerChoice').trigger('click');
             return;
         }
+
 
         fetchEmailTemplate(emailId).then(response => {
             if (response.isCodemode) {

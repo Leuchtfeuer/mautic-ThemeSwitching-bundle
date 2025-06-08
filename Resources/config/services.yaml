@@ -12,26 +12,31 @@ services:
       - '@parameter_bag'
       - '@mautic.helper.core_parameters'
       - '@doctrine.orm.entity_manager'
+      - '@twig'
 
-
-  Mautic\EmailBundle\Controller\EmailController:
-    autowire: true
-    autoconfigure: false
-    public: true
-    arguments:
-      $themeSwitcher: '@leuchtfeuer.themeswitching.service'
-    calls:
-      - method: setContainer
-        arguments: ['@service_container']
-
-  MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Controller\ThemeSwitchingController: # Corrected name
+  MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Controller\ThemeSwitchingController:
     public: true
     autowire: true
     autoconfigure: false
     arguments:
       $themeSwitcher: '@leuchtfeuer.themeswitching.service'
-    calls:
-      - method: setContainer
-        arguments: ['@service_container']
+      $factory: '@mautic.factory'
 
 
+
+
+
+# Optional: remove if not overriding EmailController
+#  Mautic\EmailBundle\Controller\EmailController:
+#    public: true
+#    autowire: true
+#    autoconfigure: false
+#    arguments:
+#      $themeSwitcher: '@leuchtfeuer.themeswitching.service'
+
+
+  MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Integration\ThemeSwitchingIntegration:
+    parent: mautic.integration.abstract
+    tags:
+      - { name: mautic.integration, integration: themeswitching }
+      - { name: mautic.config_integration }

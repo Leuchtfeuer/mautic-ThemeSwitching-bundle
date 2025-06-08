@@ -1,8 +1,10 @@
 <?php
 
+
 namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Controller;
 
 use Mautic\CoreBundle\Controller\CommonController;
+use Mautic\CoreBundle\Factory\MauticFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
@@ -10,10 +12,12 @@ use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
 class ThemeSwitchingController extends CommonController
 {
     private ThemeSwitchingService $themeSwitcher;
+    protected  MauticFactory $factory;
 
-    public function __construct(ThemeSwitchingService $themeSwitcher)
+    public function __construct(ThemeSwitchingService $themeSwitcher, MauticFactory $factory)
     {
         $this->themeSwitcher = $themeSwitcher;
+        $this->factory = $factory;
     }
 
     public function saveAction(Request $request): JsonResponse
@@ -43,7 +47,7 @@ class ThemeSwitchingController extends CommonController
             ], 400);
         }
 
-        $model = $this->getModel('email');
+        $model = $this->factory->getModel('email');
         $email = $model->getEntity($emailId);
         $originalEmail = $model->getEntity($originalEmailId);
 
@@ -60,21 +64,30 @@ class ThemeSwitchingController extends CommonController
             ], 400);
         }
 
-        $themePath = $this->get('mautic.helper.core_parameters')->get('themes_path') . '/' . $template . '/html/email.html';
+        $themePath = $this->factory->getHelper('core_parameters')->get('themes_path') . '/' . $template . '/html/email.html';
         $this->logger->info('[ThemeSwitch] Theme path resolved', ['path' => $themePath]);
 
         $newThemeHtml = file_exists($themePath)
             ? file_get_contents($themePath)
             : '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
 
+        if (
+            !$this->themeSwitcher->isMjmlContent($originalEmail->getCustomHtml()) ||
+            !$this->themeSwitcher->isMjmlContent($newThemeHtml)
+        ) {
+            $this->logger->warning('[ThemeSwitch] Detected non-MJML content, falling back to default behavior.', [
+                'emailId' => $emailId,
+                'template' => $template,
+            ]);
+
+            return new JsonResponse([
+                'success' => false,
+                'error' => 'Non-MJML content detected.',
+                'step' => 'non-mjml-fallback'
+            ], 400);
+        }
+
         $this->logger->info('[ThemeSwitch] Merging MJML templates...');
-//        $mergedHtml = $this->themeSwitcher->mergeMjmlTemplates(
-//            $originalEmail->getCustomHtml(),
-//            $newThemeHtml,
-//            false
-//        );
-
-
         $mergedHtml = $this->themeSwitcher->mergeMjml(
             $originalEmail->getCustomHtml(),
             $newThemeHtml,
@@ -101,4 +114,22 @@ class ThemeSwitchingController extends CommonController
             'step'    => 'saved',
         ]);
     }
+
+    public function checkEmailTypeAction($id): JsonResponse
+    {
+        $model = $this->factory->getModel('email');
+        $email = $model->getEntity($id);
+
+        if (!$email) {
+            return new JsonResponse(['error' => 'Email not found.'], 404);
+        }
+
+        return new JsonResponse([
+            'template' => $email->getTemplate(),
+            'isCodemode' => $email->getTemplate() === 'mautic_code_mode',
+        ]);
+    }
 }
+
+
+

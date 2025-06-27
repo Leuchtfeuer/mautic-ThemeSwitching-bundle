@@ -66,7 +66,16 @@ class ThemeSwitchingService
         }
 
         // Get theme path with fallback
-        $themesPath = $this->coreParameters->get('themes_path') ?: '/var/www/html/themes';
+        $themesPath = $this->coreParameters->get('themes_path');
+        if (!$themesPath) {
+        // Use relative path from this script if no config is set
+        $themesPath = realpath(__DIR__ . '/../../../themes');
+        }
+
+        if (!$themesPath || !is_dir($themesPath)) {
+        throw new \Exception('[ThemeSwitch] Themes directory not found.');
+        }
+        
         $basePath = rtrim($themesPath, '/') . '/' . $template . '/html/';
         $this->logger->info('[ThemeSwitch] Checking theme files in path:', ['basePath' => $basePath]);
 

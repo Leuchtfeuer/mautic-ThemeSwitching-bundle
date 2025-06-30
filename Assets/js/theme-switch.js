@@ -28,8 +28,32 @@ Mautic.initSelectTheme = function(themeField) {
             return;
         }
 
-        // Show our custom modal dialog
-        showThemeSwitchModal(themeField, theme, $link);
+        // // Show our custom modal dialog
+        // showThemeSwitchModal(themeField, theme, $link);
+
+        const emailId = getEmailIdFromDomOrUrl();
+        if (!emailId) {
+            // No email ID (first save), so use Mautic default theme picker
+            defaultInitSelectTheme(themeField);
+            $link.off('click.leuchtfeuerChoice').trigger('click');
+            return;
+        }
+
+
+        fetchEmailTemplate(emailId).then(response => {
+            if (response.isCodemode) {
+                // Fall back to Mautic default behavior
+                defaultInitSelectTheme(themeField);
+                $link.off('click.leuchtfeuerChoice').trigger('click');
+                return;
+            }
+
+            // Otherwise, show our custom modal
+            showThemeSwitchModal(themeField, theme, $link);
+        });
+
+
+
     });
 };
 
@@ -41,21 +65,36 @@ function showThemeSwitchModal(themeField, theme, $link) {
         const modal = document.createElement('div');
         modal.id = 'themeSwitchModal';
         modal.innerHTML = `
-            <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
-                <div style="background:#ffffff;padding:24px 28px;border-radius:10px;text-align:center;min-width:380px;box-shadow:0 8px 24px rgba(0,0,0,0.15);font-family:system-ui, sans-serif;">
-                    <h3 style="margin-top:0;margin-bottom:14px;color:#3b3f5c;font-size:18px;font-weight:600;">🎨 Theme Switch</h3>
-                    <p style="margin-bottom:20px;color:#555;font-size:14px;">How would you like to apply the new theme?</p>
-                    
-                    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
-                        <button id="mergeBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#4e73df;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🔧 Smart Merge</button>
-                        <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Translation Mode</button>
-                        <button id="mauticBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#f6c23e;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🧼 Mautic Default</button>
-                    </div>
-
-                    <button id="cancelBtn" style="padding:8px 12px;border:1px solid #ccc;border-radius:6px;background:transparent;color:#555;cursor:pointer;font-size:13px;transition:all 0.2s;">❌ Cancel</button>
+        <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+            <div style="background:#ffffff;padding:24px 28px;border-radius:10px;text-align:center;min-width:380px;box-shadow:0 8px 24px rgba(0,0,0,0.15);font-family:system-ui, sans-serif;">
+                <h3 style="margin-top:0;margin-bottom:14px;color:#3b3f5c;font-size:18px;font-weight:600;">🎨 Theme Switch</h3>
+                <div style="display:flex;align-items:flex-start;justify-content:center;gap:8px;margin-bottom:10px;">
+                  <span style="color:#4e73df;font-size:15px;line-height:1;">
+                    <svg width="16" height="16" style="vertical-align:middle;opacity:0.9;" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="12" fill="#4e73df" fill-opacity="0.13"/>
+                      <path d="M12 7.5a1 1 0 110-2 1 1 0 010 2zm.85 3.15v5.1a.85.85 0 11-1.7 0v-5.1a.85.85 0 111.7 0z" fill="#4e73df"/>
+                    </svg>
+                  </span>
+                  <span style="color:#888;font-size:12px;opacity:0.80;line-height:1.4;">
+                    <strong>Note:</strong> Please <u>save your email</u> before using Smart Merge or Translation Mode.<br>
+                    Only the <b>last saved version</b> will be merged.
+                  </span>
                 </div>
+
+                <p style="margin-bottom:20px;color:#555;font-size:14px;">How would you like to apply the new theme?</p>
+                
+                <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+                    <button id="mergeBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#4e73df;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🔧 Smart Merge</button>
+                    <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Translation Mode</button>
+                    <button id="mauticBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#f6c23e;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🧼 Mautic Default</button>
+                </div>
+    
+                <button id="cancelBtn" style="padding:8px 12px;border:1px solid #ccc;border-radius:6px;background:transparent;color:#555;cursor:pointer;font-size:13px;transition:all 0.2s;">❌ Cancel</button>
             </div>
-        `;
+        </div>
+    `;
+
+
         document.body.appendChild(modal);
 
         // Hover effects
@@ -86,8 +125,18 @@ function showThemeSwitchModal(themeField, theme, $link) {
         mQuery('#mauticBtn').on('click', () => {
             modal.remove();
             defaultInitSelectTheme(themeField);
-            mQuery('.theme-list .select-theme-link').off('click.leuchtfeuerChoice');
+            // Temporarily disable your handler for just this click
+            $link.off('click.leuchtfeuerChoice');
+            defaultInitSelectTheme(themeField); // triggers Mautic default logic
             $link.trigger('click');
+
+            // Now, after the theme has changed (maybe using a setTimeout or MutationObserver),
+            // re-attach your handler so your modal shows again on the next click.
+            setTimeout(() => {
+                // (Re-)attach your handler again for future clicks
+                Mautic.initSelectTheme(themeField);
+            }, 1000); // You may adjust the delay if needed
+
         });
 
         mQuery('#cancelBtn').on('click', () => {
@@ -129,6 +178,21 @@ function getEmailIdFromDomOrUrl() {
     }
     return null;
 }
+
+function fetchEmailTemplate(emailId) {
+    return fetch(`/plugin/theme-switch/email-type/${emailId}`)
+        .then(resp => {
+            if (!resp.ok) {
+                throw new Error(`Failed to fetch email info: HTTP ${resp.status}`);
+            }
+            return resp.json(); // return entire response, not just .template
+        })
+        .catch(err => {
+            console.error('[ThemeSwitch] Could not fetch template info:', err);
+            return { isCodemode: false, template: null }; // default fallback
+        });
+}
+
 
 
 // //#####################################################

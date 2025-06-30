@@ -9,6 +9,9 @@
       "email": "mautic-plugins@Leuchtfeuer.com"
     }
   ],
+  "extra": {
+    "install-directory-name": "LeuchtfeuerThemeSwitchingBundle"
+}
   "autoload": {
     "psr-4": {
       "MauticPlugin\\LeuchtfeuerThemeSwitchingBundle\\": ""

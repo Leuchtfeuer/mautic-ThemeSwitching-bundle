@@ -274,4 +274,74 @@ HTML;
     }
 
 
+    public function testExtraLockedBlocksAreDropped()
+    {
+        $old = <<<HTML
+<mjml><mj-body>
+  <!-- LOCKED_START --><mj-section><mj-text>L1</mj-text></mj-section><!-- LOCKED_END -->
+  <mj-section><mj-text>A1</mj-text></mj-section>
+  <!-- LOCKED_START --><mj-section><mj-text>L2</mj-text></mj-section><!-- LOCKED_END -->
+  <mj-section><mj-text>A2</mj-text></mj-section>
+  <!-- LOCKED_START --><mj-section><mj-text>L3</mj-text></mj-section><!-- LOCKED_END -->
+</mj-body></mjml>
+HTML;
+
+        $new = <<<HTML
+<mjml><mj-body>
+  <!-- LOCKED_START --><mj-section><mj-text>LT1</mj-text></mj-section><!-- LOCKED_END -->
+  <mj-section><mj-text>B1</mj-text></mj-section>
+  <!-- LOCKED_START --><mj-section><mj-text>LT2</mj-text></mj-section><!-- LOCKED_END -->
+</mj-body></mjml>
+HTML;
+
+        $result = $this->service->mergeMjml($old, $new, false);
+
+        // Should contain correct theme locked and unlocked blocks
+        $this->assertStringContainsString('<mj-text>LT1</mj-text>', $result);
+        $this->assertStringContainsString('<mj-text>LT2</mj-text>', $result);
+        $this->assertStringContainsString('<mj-text>A1</mj-text>', $result);
+        $this->assertStringContainsString('<mj-text>A2</mj-text>', $result);
+
+        // Should NOT contain extra locked block from old
+        $this->assertStringNotContainsString('<mj-text>L3</mj-text>', $result, 'Extra locked block from old email was not dropped!');
+    }
+
+
+    public function testExtraLockedBlocksFromNewThemeAreAppended()
+    {
+        $old = <<<HTML
+<mjml><mj-body>
+  <!-- LOCKED_START --><mj-section><mj-text>O1</mj-text></mj-section><!-- LOCKED_END -->
+  <mj-section><mj-text>Old Content</mj-text></mj-section>
+  <!-- LOCKED_START --><mj-section><mj-text>O2</mj-text></mj-section><!-- LOCKED_END -->
+</mj-body></mjml>
+HTML;
+
+        $new = <<<HTML
+<mjml><mj-body>
+  <!-- LOCKED_START --><mj-section><mj-text>N1</mj-text></mj-section><!-- LOCKED_END -->
+  <mj-section><mj-text>New Theme Unlocked</mj-text></mj-section>
+  <!-- LOCKED_START --><mj-section><mj-text>N2</mj-text></mj-section><!-- LOCKED_END -->
+  <!-- LOCKED_START --><mj-section><mj-text>N3</mj-text></mj-section><!-- LOCKED_END -->
+  <!-- LOCKED_START --><mj-section><mj-text>N4</mj-text></mj-section><!-- LOCKED_END -->
+</mj-body></mjml>
+HTML;
+
+        $result = $this->service->mergeMjml($old, $new, false);
+
+        // Should contain all new theme LOCKEDs (including N3 and N4 at the end)
+        $this->assertStringContainsString('<mj-text>N1</mj-text>', $result);
+        $this->assertStringContainsString('<mj-text>N2</mj-text>', $result);
+        $this->assertStringContainsString('<mj-text>N3</mj-text>', $result);
+        $this->assertStringContainsString('<mj-text>N4</mj-text>', $result);
+
+        // Should contain unlocked content from old
+        $this->assertStringContainsString('<mj-text>Old Content</mj-text>', $result);
+
+        // Should NOT contain old LOCKEDs
+        $this->assertStringNotContainsString('<mj-text>O1</mj-text>', $result);
+        $this->assertStringNotContainsString('<mj-text>O2</mj-text>', $result);
+    }
+
+
 }

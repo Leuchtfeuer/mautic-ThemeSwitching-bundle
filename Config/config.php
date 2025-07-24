@@ -1,4 +1,5 @@
 <?php
+// File: Config/config.php
 
 return [
     'name'        => 'Theme Switching by Leuchtfeuer',
@@ -6,8 +7,7 @@ return [
     'author'      => 'Leuchtfeuer Digital Marketing GmbH',
     'version'     => '1.0.0',
     'license'     => 'GPL-3.0',
-    'iconClass' => 'fa fa-retweet', // or any FA icon
-    'icon' => 'plugins/LeuchtfeuerThemeSwitchingBundle/Assets/img/LeuchtfeuerThemeSwitchingBundle.png',
+    'icon'        => 'plugins/LeuchtfeuerThemeSwitchingBundle/Assets/img/LeuchtfeuerThemeSwitchingBundle.png',
 
 
     'routes' => [
@@ -34,9 +34,33 @@ return [
 
         ],
     ],
+    // --- Add the services definition here ---
+    'services' => [
+        'integrations' => [
+            'mautic.integration.themeswitching' => [ // Unique service ID
+                'class' => MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Integration\ThemeSwitchingIntegration::class,
+                'arguments' => [
+                    // These arguments are standard for Mautic integrations
+                    'event_dispatcher',
+                    'mautic.helper.cache_storage',
+                    'doctrine.orm.entity_manager',
+                    'session',
+                    'request_stack',
+                    'router',
+                    'translator',
+                    'monolog.logger.mautic',
+                    'mautic.helper.encryption',
+                    'mautic.lead.model.lead',
+                    'mautic.lead.model.company',
+                    'mautic.helper.paths',
+                    'mautic.core.model.notification',
+                    'mautic.lead.model.field',
+                    'mautic.plugin.model.integration_entity',
+                    'mautic.lead.model.dnc',
+                ],
+            ],
+        ],
 
-
-    'services' => [], // Services are defined in YAML
-
+    ],
     'parameters' => [],
 ];

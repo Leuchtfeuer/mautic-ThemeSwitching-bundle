@@ -13,6 +13,25 @@ Mautic.initSelectTheme = function(themeField) {
     //
     // Instead, we remove the default event so we can show our custom dialog first.
 
+    // !!! Those steps were taken from app/bundles/CoreBundle/Assets/js/4.builder.js
+
+    // --- Fresh email? Do core's default content setup, since we skip Mautic's handler ---
+    var customHtml = mQuery('textarea.builder-html');
+    var isNew = Mautic.isNewEntity('#page_sessionId, #emailform_sessionId');
+    Mautic.showChangeThemeWarning = true;
+    Mautic.builderTheme = themeField.val();
+
+    if (isNew) {
+        Mautic.showChangeThemeWarning = false;
+
+        // Populate default content
+        if (!customHtml.length || !customHtml.val().length) {
+            Mautic.setThemeHtml(Mautic.builderTheme);
+        }
+    }
+
+
+
     const $links = mQuery('.theme-list .select-theme-link');
 
     // 2a) Remove ALL existing click handlers (including Mautic's default).

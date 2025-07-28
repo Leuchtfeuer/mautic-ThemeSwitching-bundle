@@ -209,15 +209,15 @@ class ThemeSwitchingService
                 if (isset($newLocked[$newLockedIndex])) {
                     $mergedSegments[] = $newLocked[$newLockedIndex];
                     $newLockedIndex++;
-                } else {
-                    // Keep original if no corresponding new LOCKED
-                    $mergedSegments[] = $segment['content'];
                 }
+                // If not, do nothing: extra old locked blocks are dropped
             } else {
                 // Preserve unlocked content
                 $mergedSegments[] = $segment['content'];
             }
         }
+
+
 
         // Append any remaining locked blocks from new theme
         while ($newLockedIndex < count($newLocked)) {

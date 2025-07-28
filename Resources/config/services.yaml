@@ -1,3 +1,4 @@
+# File: Resources/config/services.yaml
 services:
   MauticPlugin\LeuchtfeuerThemeSwitchingBundle\EventListener\BuilderSubscriber:
     arguments:
@@ -37,6 +38,8 @@ services:
 
   MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Integration\ThemeSwitchingIntegration:
     parent: mautic.integration.abstract
+    # --- KEY FIX: Align 'integration' tag value with getName() in ThemeSwitchingIntegration.php ---
     tags:
-      - { name: mautic.integration, integration: themeswitching }
+      # Changed from 'themeswitching' to 'LeuchtfeuerThemeSwitchingBundle'
+      - { name: mautic.integration, integration: LeuchtfeuerThemeSwitchingBundle }
       - { name: mautic.config_integration }

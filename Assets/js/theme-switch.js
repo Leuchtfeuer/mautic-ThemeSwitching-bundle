@@ -257,7 +257,7 @@ function showThemeSwitchModal(themeField, theme, $link) {
                 
                 <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
                     <button id="mergeBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#4e73df;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🔧 Smart Merge</button>
-                    <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Translation Mode</button>
+                    <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Smart Merge & Translate</button>
                     <button id="mauticBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#f6c23e;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🧼 Mautic Default</button>
                 </div>
     

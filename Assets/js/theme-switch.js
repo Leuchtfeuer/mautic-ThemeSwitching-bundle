@@ -358,9 +358,17 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
         // **Minimal change**: dropdown picker for language, then pass via URL
         mQuery('#translationBtn').on('click', async () => {
-            if (mQuery('#translationBtn').prop('disabled')) return; // bail if disabled
+            // bail if disabled
+            if (mQuery('#translationBtn').prop('disabled')) return;
+
             const lang = await openLanguagePicker('DE'); // default DE
             if (!lang) return;
+
+            // Show the same style of "next step" reminder used in the translation plugin
+            const warn = '\n\nNext step:\nOpen the Email Builder, review the translated content, and click Save.';
+            alert('Smart Merge & Translate initialized.' + warn);
+
+            // Proceed to builder with translation params
             launchCustomSwitch(theme, true, lang);
             modal.remove();
         });

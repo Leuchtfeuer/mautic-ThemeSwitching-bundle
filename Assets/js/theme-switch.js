@@ -136,8 +136,14 @@ function showThemeSwitchModal(themeField, theme, $link) {
             modal.remove();
         });
 
+        // **Minimal change**: ask for target language and pass to PHP via URL
         mQuery('#translationBtn').on('click', () => {
-            launchCustomSwitch(theme, true);
+            var lang = window.prompt('Target language code (e.g., DE, EN-GB):', 'DE');
+            if (lang === null) { // cancelled
+                return;
+            }
+            lang = (lang || '').trim().toUpperCase();
+            launchCustomSwitch(theme, true, lang);
             modal.remove();
         });
 
@@ -167,8 +173,9 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
 /**
  * Redirect to the builder with the appropriate parameters.
+ * (Minimal change: optional targetLang param)
  */
-function launchCustomSwitch(theme, useTranslation) {
+function launchCustomSwitch(theme, useTranslation, targetLang) {
     const emailId = getEmailIdFromDomOrUrl();
     if (!emailId) {
         alert("Unable to find email ID.");
@@ -177,7 +184,8 @@ function launchCustomSwitch(theme, useTranslation) {
     const url = `/s/emails/builder/${emailId}`
         + `?template=${theme}&original=${emailId}`
         + `&usePluginMerge=true`
-        + (useTranslation ? '&translationMode=true' : '');
+        + (useTranslation ? '&translationMode=true' : '')
+        + (targetLang ? `&targetLang=${encodeURIComponent(targetLang)}` : '');
 
     window.location.href = url;
 }

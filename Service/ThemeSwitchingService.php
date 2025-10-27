@@ -103,8 +103,6 @@ class ThemeSwitchingService
                         $this->logger->warning('[ThemeSwitch] Translator returned unexpected type; using original MJML.');
                     }
 
-                    // Add a tiny comment for quick visual confirmation (harmless in MJML)
-                    $originalMjml .= "\n<!-- [ThemeSwitch] Translated to {$targetLang} -->\n";
                 } catch (\Throwable $e) {
                     $this->logger->warning('[ThemeSwitch] Translation failed; proceeding without translation', [
                         'ex'   => $e->getMessage(),

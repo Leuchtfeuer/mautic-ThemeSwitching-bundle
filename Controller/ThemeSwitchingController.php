@@ -131,6 +131,17 @@ class ThemeSwitchingController extends CommonController
             'isCodemode' => $email->getTemplate() === 'mautic_code_mode',
         ]);
     }
+
+    public function canTranslateAction(): JsonResponse
+    {
+        // Minimal, no container wiring needed
+        $available = \class_exists(\MauticPlugin\LeuchtfeuerTranslationsBundle\Service\MjmlTranslateService::class);
+
+        return new JsonResponse([
+            'available' => $available,
+        ]);
+    }
+
 }
 
 

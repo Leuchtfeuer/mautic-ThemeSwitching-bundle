@@ -269,14 +269,81 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
         document.body.appendChild(modal);
 
+
+
+        // find the translation button once
+        const $translationBtn = mQuery('#translationBtn');
+
+        // pessimistically disable while checking
+        $translationBtn
+            .prop('disabled', true)
+            .attr('aria-disabled', 'true')
+            .css({
+                background: '#e5e7eb',            // gray
+                color: '#6b7280',                 // gray text
+                border: '1px solid #d1d5db',      // subtle border
+                boxShadow: 'none',
+                cursor: 'not-allowed',
+                pointerEvents: 'none',
+                opacity: 1                        // keep readable, no semi-transparency
+            })
+            .attr('title', 'Checking translation availability…');
+
+
+        // check backend and toggle state
+        canTranslate().then((ok) => {
+            if (ok) {
+                $translationBtn
+                    .prop('disabled', false)
+                    .attr('aria-disabled', 'false')
+                    .css({
+                        background: '#36b9cc',    // restore original cyan
+                        color: '#ffffff',
+                        border: 'none',
+                        boxShadow: '',
+                        cursor: 'pointer',
+                        pointerEvents: '',
+                        opacity: ''
+                    })
+                    .attr('title', '');
+                mQuery('#translationNote').remove();
+            } else {
+                $translationBtn
+                    .prop('disabled', true)
+                    .attr('aria-disabled', 'true')
+                    .css({
+                        background: '#e5e7eb',            // strong greyed-out look
+                        color: '#6b7280',
+                        border: '1px solid #d1d5db',
+                        boxShadow: 'none',
+                        cursor: 'not-allowed',
+                        pointerEvents: 'none',
+                        opacity: 1
+                    })
+                    .attr('title', 'Install the Translations plugin to enable translation');
+
+                if (!document.getElementById('translationNote')) {
+                    const note = document.createElement('div');
+                    note.id = 'translationNote';
+                    note.style.fontSize = '12px';
+                    note.style.color = '#888';
+                    note.style.marginTop = '6px';
+                    note.textContent = 'Install the Translations plugin to enable this.';
+                    $translationBtn.parent()[0].appendChild(note);
+                }
+            }
+        });
+
+
+
         // Hover effects
         const hoverStyle = document.createElement('style');
         hoverStyle.innerHTML = `
-            #themeSwitchModal button:hover {
+            #themeSwitchModal button:not([disabled]):hover {
                 filter: brightness(1.08);
                 transform: translateY(-1px);
             }
-            #themeSwitchModal button:active {
+            #themeSwitchModal button:not([disabled]):active {
                 filter: brightness(0.95);
                 transform: scale(0.98);
             }
@@ -291,6 +358,7 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
         // **Minimal change**: dropdown picker for language, then pass via URL
         mQuery('#translationBtn').on('click', async () => {
+            if (mQuery('#translationBtn').prop('disabled')) return; // bail if disabled
             const lang = await openLanguagePicker('DE'); // default DE
             if (!lang) return;
             launchCustomSwitch(theme, true, lang);
@@ -357,7 +425,7 @@ function getEmailIdFromDomOrUrl() {
 }
 
 function fetchEmailTemplate(emailId) {
-    return fetch(`/plugin/theme-switch/email-type/${emailId}`)
+    return fetch(`/s/plugin/theme-switch/email-type/${emailId}`)
         .then(resp => {
             if (!resp.ok) {
                 throw new Error(`Failed to fetch email info: HTTP ${resp.status}`);
@@ -369,6 +437,14 @@ function fetchEmailTemplate(emailId) {
             return { isCodemode: false, template: null }; // default fallback
         });
 }
+
+function canTranslate() {
+    return fetch('/s/plugin/theme-switch/can-translate', { credentials: 'same-origin' })
+        .then(r => (r.ok ? r.json() : { available: false }))
+        .then(d => !!d.available)
+        .catch(() => false);
+}
+
 
 
 

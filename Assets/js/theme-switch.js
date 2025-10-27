@@ -328,7 +328,7 @@ function showThemeSwitchModal(themeField, theme, $link) {
                     note.style.fontSize = '12px';
                     note.style.color = '#888';
                     note.style.marginTop = '6px';
-                    note.textContent = 'Install the Translations plugin to enable this.';
+                    note.textContent = 'Install the Translations plugin to enable translation.';
                     $translationBtn.parent()[0].appendChild(note);
                 }
             }

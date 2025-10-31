@@ -2,13 +2,18 @@
 
 Allows MJML Theme switching without losing all content by introducing markers. This plugin enhances Mautic's email builder by providing advanced options for changing MJML themes while intelligently preserving your existing content.
 
-![Plugin Icon](Assets/img/LeuchtfeuerThemeSwitchingBundle.png)
 
 ## Description
 
 The **Theme Switching by Leuchtfeuer Plugin** for Mautic provides a sophisticated way to change MJML email themes without the common issue of losing all previously crafted content. By utilizing special HTML comment markers (`<!-- LOCKED_START -->` and `<!-- LOCKED_END -->`), users can define sections within their MJML that should be treated specifically during a theme switch. The plugin offers "Smart Merge" and "Translation Mode" options, giving users fine-grained control over how content from the old theme is integrated into the new one.
 
 This plugin is ideal for users who frequently update email designs, want to maintain brand consistency across different templates, or need to apply stylistic variations (e.g., for translations or A/B testing) to existing content without starting from scratch.
+
+## Requirements / Version Support
+- Mautic 5.1 
+- PHP 8.3
+- Core Patch: https://github.com/mautic/mautic/pull/15042
+
 
 ## Features
 

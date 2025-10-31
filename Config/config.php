@@ -5,7 +5,7 @@ return [
     'name'        => 'Theme Switching by Leuchtfeuer',
     'description' => 'Allows MJML Theme switching without losing all content by introducing markers.<br><br> Theme Switching for MJML works best if your themes include the proper markers. Docs: <a href="https://leuchtfeuer.com/mautic/know-how/theme-switching-plugin" target="_blank">Documentation</a>.',
     'author'      => 'Leuchtfeuer Digital Marketing GmbH',
-    'version'     => '1.0.2',
+    'version'     => '1.1.0',
     'license'     => 'GPL-3.0',
 //    'icon'        => 'plugins/LeuchtfeuerThemeSwitchingBundle/Assets/img/LeuchtfeuerThemeSwitchingBundle.png',
 // if no icon provided Mautic uses default fallback of Assets/img/icon.png

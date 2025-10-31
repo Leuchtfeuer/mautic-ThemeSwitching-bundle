@@ -7,12 +7,14 @@ namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Tests\Service;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Psr\Container\ContainerInterface;
 
 use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Doctrine\ORM\EntityManagerInterface;
 
 use Twig\Loader\ArrayLoader;
 use Twig\Environment;
+
 
 class ThemeSwitchingServiceTest extends TestCase
 {
@@ -29,9 +31,30 @@ class ThemeSwitchingServiceTest extends TestCase
         // Create a real Twig environment
         $twig = new Environment(new ArrayLoader());
 
-        // Inject everything, including real Twig
-        $this->service = new ThemeSwitchingService($logger, $paramsHelper, $em, $twig);
+        // Minimal no-op container to satisfy the new constructor signature
+        $container = new class implements ContainerInterface {
+            public function get(string $id)
+            {
+                // If this ever runs during these tests, surface immediately.
+                throw new \RuntimeException("Unexpected container->get('$id') in ThemeSwitchingServiceTest.");
+            }
+            public function has(string $id): bool
+            {
+                return false;
+            }
+        };
+
+        // New constructor: (..., $twig, ContainerInterface $container, ?MjmlTranslateService $translator = null)
+        $this->service = new ThemeSwitchingService(
+            $logger,
+            $paramsHelper,
+            $em,
+            $twig,
+            $container,
+            null // translator not needed for merge tests
+        );
     }
+
 
 
     /**

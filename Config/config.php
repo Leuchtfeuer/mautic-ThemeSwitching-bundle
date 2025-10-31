@@ -15,7 +15,7 @@ return [
         'main' => [ // we can also use public instead of main, but that is open to anyone
             'plugin_theme_switch_save' => [
                 'path'       => '/plugin/theme-switch/save',
-                'controller' => 'LeuchtfeuerThemeSwitchingBundle:ThemeSwitching:save',
+                'controller' => 'MauticPlugin\\LeuchtfeuerThemeSwitchingBundle\\Controller\\ThemeSwitchingController::saveAction',
                 'method'     => 'POST',
             ],
 
@@ -29,6 +29,12 @@ return [
             'plugin_theme_switch_check_email_type' => [
                 'path'       => '/plugin/theme-switch/email-type/{id}',
                 'controller' => 'MauticPlugin\\LeuchtfeuerThemeSwitchingBundle\\Controller\\ThemeSwitchingController::checkEmailTypeAction',
+                'method'     => 'GET',
+            ],
+
+            'plugin_theme_switch_can_translate' => [
+                'path'       => '/plugin/theme-switch/can-translate',
+                'controller' => 'MauticPlugin\\LeuchtfeuerThemeSwitchingBundle\\Controller\\ThemeSwitchingController::canTranslateAction',
                 'method'     => 'GET',
             ],
 

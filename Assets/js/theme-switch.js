@@ -76,6 +76,159 @@ Mautic.initSelectTheme = function(themeField) {
     });
 };
 
+/* ------------------------------------------------------------------
+ * Predefined language list + tiny modal picker (surgical addition)
+ * ------------------------------------------------------------------ */
+
+// DeepL target languages (kept in sync with Translations plugin)
+const DEEPL_TARGET_LANGUAGES = [
+    { code: 'AR',      name: 'Arabic' },
+    { code: 'BG',      name: 'Bulgarian' },
+    { code: 'CS',      name: 'Czech' },
+    { code: 'DA',      name: 'Danish' },
+    { code: 'DE',      name: 'German' },
+    { code: 'EL',      name: 'Greek' },
+
+    // English
+    { code: 'EN',      name: 'English (unspecified)' }, // prefer EN-GB or EN-US
+    { code: 'EN-GB',   name: 'English (British)' },
+    { code: 'EN-US',   name: 'English (American)' },
+
+    // Spanish
+    { code: 'ES',      name: 'Spanish' },
+    { code: 'ES-419',  name: 'Spanish (Latin American)' }, // next-gen text translation only
+
+    { code: 'ET',      name: 'Estonian' },
+    { code: 'FI',      name: 'Finnish' },
+    { code: 'FR',      name: 'French' },
+
+    { code: 'HE',      name: 'Hebrew' }, // next-gen text translation only
+
+    { code: 'HU',      name: 'Hungarian' },
+    { code: 'ID',      name: 'Indonesian' },
+    { code: 'IT',      name: 'Italian' },
+    { code: 'JA',      name: 'Japanese' },
+    { code: 'KO',      name: 'Korean' },
+    { code: 'LT',      name: 'Lithuanian' },
+    { code: 'LV',      name: 'Latvian' },
+    { code: 'NB',      name: 'Norwegian Bokmål' },
+    { code: 'NL',      name: 'Dutch' },
+    { code: 'PL',      name: 'Polish' },
+
+    // Portuguese
+    { code: 'PT',      name: 'Portuguese (unspecified)' }, // prefer PT-BR or PT-PT
+    { code: 'PT-BR',   name: 'Portuguese (Brazilian)' },
+    { code: 'PT-PT',   name: 'Portuguese (European)' },
+
+    { code: 'RO',      name: 'Romanian' },
+    { code: 'RU',      name: 'Russian' },
+    { code: 'SK',      name: 'Slovak' },
+    { code: 'SL',      name: 'Slovenian' },
+    { code: 'SV',      name: 'Swedish' },
+
+    { code: 'TH',      name: 'Thai' }, // next-gen text translation only
+
+    { code: 'TR',      name: 'Turkish' },
+    { code: 'UK',      name: 'Ukrainian' },
+
+    { code: 'VI',      name: 'Vietnamese' }, // next-gen text translation only
+
+    // Chinese
+    { code: 'ZH',       name: 'Chinese (unspecified)' }, // prefer ZH-HANS or ZH-HANT
+    { code: 'ZH-HANS',  name: 'Chinese (Simplified)' },
+    { code: 'ZH-HANT',  name: 'Chinese (Traditional)' },
+];
+
+function openLanguagePicker(defaultCode = 'DE') {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.4)';
+        overlay.style.zIndex = '10000';
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) cleanup(null);
+        });
+
+        const modal = document.createElement('div');
+        modal.style.position = 'absolute';
+        modal.style.top = '50%';
+        modal.style.left = '50%';
+        modal.style.transform = 'translate(-50%, -50%)';
+        modal.style.background = '#fff';
+        modal.style.padding = '16px';
+        modal.style.borderRadius = '8px';
+        modal.style.boxShadow = '0 10px 30px rgba(0,0,0,0.2)';
+        modal.style.width = '420px';
+        modal.style.maxWidth = '90%';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+
+        const title = document.createElement('h3');
+        title.textContent = 'Choose target language';
+        title.style.marginTop = '0';
+
+        const select = document.createElement('select');
+        select.style.width = '100%';
+        select.style.margin = '8px 0';
+
+        DEEPL_TARGET_LANGUAGES.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.code;
+            opt.textContent = `${l.name} (${l.code})`;
+            if (l.code.toUpperCase() === defaultCode.toUpperCase()) opt.selected = true;
+            select.appendChild(opt);
+        });
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.justifyContent = 'flex-end';
+        actions.style.gap = '8px';
+        actions.style.marginTop = '12px';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Cancel';
+
+        const okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.textContent = 'Translate';
+        okBtn.className = 'btn btn-primary';
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(okBtn);
+
+        modal.appendChild(title);
+        modal.appendChild(select);
+        modal.appendChild(actions);
+        overlay.appendChild(modal);
+
+        function choose() {
+            const code = (select.value || '').trim().toUpperCase();
+            if (!code) { alert('Please choose a language.'); return; }
+            cleanup(code);
+        }
+
+        function cleanup(result) {
+            document.removeEventListener('keydown', onKey);
+            overlay.remove();
+            resolve(result);
+        }
+
+        function onKey(e) {
+            if (e.key === 'Escape') cleanup(null);
+            if (e.key === 'Enter')  choose();
+        }
+
+        cancelBtn.addEventListener('click', () => cleanup(null));
+        okBtn.addEventListener('click', choose);
+        document.addEventListener('keydown', onKey);
+
+        document.body.appendChild(overlay);
+        select.focus();
+    });
+}
+
 /**
  * Display a minimal modal with 3 theme switching options.
  */
@@ -104,7 +257,7 @@ function showThemeSwitchModal(themeField, theme, $link) {
                 
                 <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
                     <button id="mergeBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#4e73df;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🔧 Smart Merge</button>
-                    <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Translation Mode</button>
+                    <button id="translationBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#36b9cc;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🌐 Smart Merge & Translate</button>
                     <button id="mauticBtn" style="padding:10px 14px;border:none;border-radius:6px;background:#f6c23e;color:white;font-weight:500;font-size:14px;cursor:pointer;transition:all 0.2s;">🧼 Mautic Default</button>
                 </div>
     
@@ -116,14 +269,81 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
         document.body.appendChild(modal);
 
+
+
+        // find the translation button once
+        const $translationBtn = mQuery('#translationBtn');
+
+        // pessimistically disable while checking
+        $translationBtn
+            .prop('disabled', true)
+            .attr('aria-disabled', 'true')
+            .css({
+                background: '#e5e7eb',            // gray
+                color: '#6b7280',                 // gray text
+                border: '1px solid #d1d5db',      // subtle border
+                boxShadow: 'none',
+                cursor: 'not-allowed',
+                pointerEvents: 'none',
+                opacity: 1                        // keep readable, no semi-transparency
+            })
+            .attr('title', 'Checking translation availability…');
+
+
+        // check backend and toggle state
+        canTranslate().then((ok) => {
+            if (ok) {
+                $translationBtn
+                    .prop('disabled', false)
+                    .attr('aria-disabled', 'false')
+                    .css({
+                        background: '#36b9cc',    // restore original cyan
+                        color: '#ffffff',
+                        border: 'none',
+                        boxShadow: '',
+                        cursor: 'pointer',
+                        pointerEvents: '',
+                        opacity: ''
+                    })
+                    .attr('title', '');
+                mQuery('#translationNote').remove();
+            } else {
+                $translationBtn
+                    .prop('disabled', true)
+                    .attr('aria-disabled', 'true')
+                    .css({
+                        background: '#e5e7eb',            // strong greyed-out look
+                        color: '#6b7280',
+                        border: '1px solid #d1d5db',
+                        boxShadow: 'none',
+                        cursor: 'not-allowed',
+                        pointerEvents: 'none',
+                        opacity: 1
+                    })
+                    .attr('title', 'Install the Translations plugin to enable translation');
+
+                if (!document.getElementById('translationNote')) {
+                    const note = document.createElement('div');
+                    note.id = 'translationNote';
+                    note.style.fontSize = '12px';
+                    note.style.color = '#888';
+                    note.style.marginTop = '6px';
+                    note.textContent = 'Install the Translations plugin to enable translation.';
+                    $translationBtn.parent()[0].appendChild(note);
+                }
+            }
+        });
+
+
+
         // Hover effects
         const hoverStyle = document.createElement('style');
         hoverStyle.innerHTML = `
-            #themeSwitchModal button:hover {
+            #themeSwitchModal button:not([disabled]):hover {
                 filter: brightness(1.08);
                 transform: translateY(-1px);
             }
-            #themeSwitchModal button:active {
+            #themeSwitchModal button:not([disabled]):active {
                 filter: brightness(0.95);
                 transform: scale(0.98);
             }
@@ -136,8 +356,20 @@ function showThemeSwitchModal(themeField, theme, $link) {
             modal.remove();
         });
 
-        mQuery('#translationBtn').on('click', () => {
-            launchCustomSwitch(theme, true);
+        // **Minimal change**: dropdown picker for language, then pass via URL
+        mQuery('#translationBtn').on('click', async () => {
+            // bail if disabled
+            if (mQuery('#translationBtn').prop('disabled')) return;
+
+            const lang = await openLanguagePicker('DE'); // default DE
+            if (!lang) return;
+
+            // Show the same style of "next step" reminder used in the translation plugin
+            const warn = '\n\nNext step:\nOpen the Email Builder, review the translated content, and click Save.';
+            alert('Smart Merge & Translate initialized.' + warn);
+
+            // Proceed to builder with translation params
+            launchCustomSwitch(theme, true, lang);
             modal.remove();
         });
 
@@ -167,8 +399,9 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
 /**
  * Redirect to the builder with the appropriate parameters.
+ * (Minimal change: optional targetLang param)
  */
-function launchCustomSwitch(theme, useTranslation) {
+function launchCustomSwitch(theme, useTranslation, targetLang) {
     const emailId = getEmailIdFromDomOrUrl();
     if (!emailId) {
         alert("Unable to find email ID.");
@@ -177,7 +410,8 @@ function launchCustomSwitch(theme, useTranslation) {
     const url = `/s/emails/builder/${emailId}`
         + `?template=${theme}&original=${emailId}`
         + `&usePluginMerge=true`
-        + (useTranslation ? '&translationMode=true' : '');
+        + (useTranslation ? '&translationMode=true' : '')
+        + (targetLang ? `&targetLang=${encodeURIComponent(targetLang)}` : '');
 
     window.location.href = url;
 }
@@ -199,7 +433,7 @@ function getEmailIdFromDomOrUrl() {
 }
 
 function fetchEmailTemplate(emailId) {
-    return fetch(`/plugin/theme-switch/email-type/${emailId}`)
+    return fetch(`/s/plugin/theme-switch/email-type/${emailId}`)
         .then(resp => {
             if (!resp.ok) {
                 throw new Error(`Failed to fetch email info: HTTP ${resp.status}`);
@@ -211,6 +445,14 @@ function fetchEmailTemplate(emailId) {
             return { isCodemode: false, template: null }; // default fallback
         });
 }
+
+function canTranslate() {
+    return fetch('/s/plugin/theme-switch/can-translate', { credentials: 'same-origin' })
+        .then(r => (r.ok ? r.json() : { available: false }))
+        .then(d => !!d.available)
+        .catch(() => false);
+}
+
 
 
 

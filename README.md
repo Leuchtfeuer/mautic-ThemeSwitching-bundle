@@ -13,6 +13,7 @@ This plugin is ideal for users who frequently update email designs, want to main
 - Mautic 5.1 
 - PHP 8.3
 - Core Patch: https://github.com/mautic/mautic/pull/15042
+- For the Translation mode you'll need the Leuchtfeuer Translation Plugin: https://github.com/Leuchtfeuer/mautic-Translations-bundle
 
 
 ## Features

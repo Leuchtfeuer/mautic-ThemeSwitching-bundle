@@ -168,6 +168,6 @@ For more information or support, visit [Leuchtfeuer Digital Marketing](https://l
 
 ## License
 
-This project is licensed under the GPL-3.0 License.
+This plugin is licensed under the GPL v3 License.
 
 ---

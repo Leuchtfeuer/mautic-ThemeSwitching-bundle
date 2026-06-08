@@ -294,14 +294,6 @@ class ThemeSwitchingService
     }
 
     /**
-     * Quick heuristic: does it look like MJML?
-     */
-    public function isMjmlContent(string $html): bool
-    {
-        return stripos($html, '<mjml') !== false && stripos($html, '<mj-body') !== false;
-    }
-
-    /**
      * @throws \InvalidArgumentException
      */
     private function loadThemeMjml(string $template): string

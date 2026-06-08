@@ -1,5 +1,6 @@
 <?php
-// tests/Service/ThemeSwitchingServiceTest.php
+
+declare(strict_types=1);
 
 namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Tests\Service;
 
@@ -44,14 +45,13 @@ class ThemeSwitchingServiceTest extends TestCase
             }
         };
 
-        // New constructor: (..., $twig, ContainerInterface $container, ?MjmlTranslateService $translator = null)
         $this->service = new ThemeSwitchingService(
             $logger,
             $paramsHelper,
             $em,
             $twig,
             $container,
-            null // translator not needed for merge tests
+            null
         );
     }
 

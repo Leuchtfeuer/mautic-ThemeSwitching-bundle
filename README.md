@@ -10,10 +10,12 @@ The **Theme Switching by Leuchtfeuer Plugin** for Mautic provides a sophisticate
 This plugin is ideal for users who frequently update email designs, want to maintain brand consistency across different templates, or need to apply stylistic variations (e.g., for translations or A/B testing) to existing content without starting from scratch.
 
 ## Requirements / Version Support
-- Mautic 5.1 
-- PHP 8.3
-- Core Patch: https://github.com/mautic/mautic/pull/15042
+- Mautic 5.1+
+- PHP 8.1+
+- GrapesJS Builder plugin (MJML emails)
 - For the Translation mode you'll need the Leuchtfeuer Translation Plugin: https://github.com/Leuchtfeuer/mautic-Translations-bundle
+
+Smart Merge runs entirely inside this plugin (no Mautic core patch required).
 
 
 ## Features
@@ -78,16 +80,8 @@ sudo /usr/bin/php /path-to-mautic/bin/console mautic:plugins:install
 
 ### Processing the Theme Switch (Smart Merge / Translation Mode)
 1.  If the user selects "Smart Merge" or "Translation Mode":
-    *   The browser is redirected to the email builder URL, but with special query parameters (e.g., `template=newThemeName`, `original=currentEmailId`, `usePluginMerge=true`, `translationMode=true/false`).
-2.  When the email builder reloads:
-    *   The `BuilderSubscriber` (an event listener part of this plugin) detects these special parameters.
-    *   It then invokes the `ThemeSwitchingService`.
-    *   The `ThemeSwitchingService` performs the core logic:
-        *   It fetches the MJML content of the original email and the new theme.
-        *   It merges these two MJML sources based on the chosen mode (Smart Merge or Translation) and the `LOCKED` markers.
-        *   The resulting merged MJML is saved to the database for the current email.
-        *   The email's assigned theme is updated to the new theme.
-3.  The Mautic email builder finishes loading, now displaying the email with the new theme applied and content merged according to the selected strategy.
+    *   The browser is redirected to the plugin merge endpoint (`/s/plugin/theme-switch/merge/{emailId}`) with the selected theme and mode.
+2.  The plugin controller invokes `ThemeSwitchingService`, merges MJML into `bundle_grapesjsbuilder.custom_mjml`, updates the email theme, and redirects back to the email editor.
 
 ### Using Markers
 -   To make content "editable" or "preserveable" across theme changes (unlocked content), simply place it outside any `LOCKED` blocks.

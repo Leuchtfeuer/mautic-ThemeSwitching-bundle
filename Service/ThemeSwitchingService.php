@@ -56,15 +56,12 @@ class ThemeSwitchingService
         }
 
         $connection = $this->doctrine->getConnection();
+        $tableName  = $this->getGrapesJsTableName();
 
         // Load MJML from Grapes table
         $originalMjml = $connection->fetchOne(
-            'SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?',
+            "SELECT custom_mjml FROM {$tableName} WHERE email_id = ?",
             [$originalEmailId]
-        );
-        $existingMjml = $connection->fetchOne(
-            'SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?',
-            [$emailId]
         );
 
         if (!$originalMjml) {
@@ -156,18 +153,22 @@ class ThemeSwitchingService
         // Compile Twig placeholders inside MJML (e.g., asset URLs)
         $compiledHtml = $this->compileTwigMjml($mergedHtml, $template);
 
-        // Persist MJML back to Grapes table
-        $connection->update(
-            'bundle_grapesjsbuilder',
+        // Persist MJML back to Grapes table (insert when the row does not exist yet)
+        $updated = $connection->update(
+            $tableName,
             ['custom_mjml' => $compiledHtml],
-            ['email_id'    => $emailId]
+            ['email_id' => $emailId]
         );
+
+        if (0 === $updated) {
+            $connection->insert($tableName, [
+                'email_id'    => $emailId,
+                'custom_mjml' => $compiledHtml,
+            ]);
+        }
 
         // Update email template assignment (do not set customHtml; MJML is source of truth)
         $email->setTemplate($template);
-
-        ###############REMOVE THIS LINE
-//        $email->setCustomHtml($compiledHtml);
 
         $model->saveEntity($email);
 
@@ -318,6 +319,11 @@ class ThemeSwitchingService
     /**
      * Normalize language strings to what DeepL typically expects (e.g. EN, DE, EN-GB, PT-BR).
      */
+    private function getGrapesJsTableName(): string
+    {
+        return (string) $this->coreParameters->get('db_table_prefix', '').'bundle_grapesjsbuilder';
+    }
+
     private function normalizeTargetLang(?string $raw): string
     {
         if (!$raw) {

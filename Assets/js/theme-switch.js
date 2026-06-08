@@ -407,13 +407,18 @@ function launchCustomSwitch(theme, useTranslation, targetLang) {
         alert("Unable to find email ID.");
         return;
     }
-    const url = `/s/emails/builder/${emailId}`
-        + `?template=${theme}&original=${emailId}`
-        + `&usePluginMerge=true`
-        + (useTranslation ? '&translationMode=true' : '')
-        + (targetLang ? `&targetLang=${encodeURIComponent(targetLang)}` : '');
 
-    window.location.href = url;
+    const params = new URLSearchParams({
+        template: theme,
+        original: String(emailId),
+        translationMode: useTranslation ? '1' : '0',
+    });
+
+    if (targetLang) {
+        params.set('targetLang', targetLang);
+    }
+
+    window.location.href = `/s/plugin/theme-switch/merge/${emailId}?${params.toString()}`;
 }
 
 /**

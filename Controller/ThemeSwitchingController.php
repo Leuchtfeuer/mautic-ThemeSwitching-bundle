@@ -1,125 +1,73 @@
 <?php
 
+declare(strict_types=1);
+
 namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Controller;
 
 use Mautic\CoreBundle\Controller\CommonController;
-use Mautic\CoreBundle\Factory\MauticFactory;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\JsonResponse;
+use Mautic\CoreBundle\Helper\InputHelper;
+use Mautic\EmailBundle\Model\EmailModel;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 
 class ThemeSwitchingController extends CommonController
 {
-    private ThemeSwitchingService $themeSwitcher;
-    protected MauticFactory $factory;
-
-    public function __construct(ThemeSwitchingService $themeSwitcher, MauticFactory $factory)
+    public function mergeAction(Request $request, ThemeSwitchingService $themeSwitcher): RedirectResponse
     {
-        $this->themeSwitcher = $themeSwitcher;
-        $this->factory       = $factory;
-    }
+        $emailId         = (int) ($request->attributes->get('emailId') ?? $request->query->get('emailId'));
+        $originalEmailId = (int) $request->query->get('original', $emailId);
+        $template        = InputHelper::clean($request->query->get('template'));
+        $translationMode = $request->query->getBoolean('translationMode', false);
 
-    public function saveAction(Request $request): JsonResponse
-    {
-        $this->logger->info('[ThemeSwitch] saveAction was triggered');
+        if ($emailId <= 0 || '' === $template) {
+            $this->addFlashMessage('Theme switch failed: missing email or template.', [], 'error');
 
-        $data = json_decode((string) $request->getContent(), true);
-        $this->logger->info('[ThemeSwitch] Request data received', $data ?? []);
-
-        $emailId         = $data['emailId'] ?? null;
-        $template        = $data['template'] ?? null;
-        $originalEmailId = $data['original'] ?? $emailId;
-        $translationMode = filter_var($data['translationMode'] ?? false, FILTER_VALIDATE_BOOLEAN);
-
-        // NEW (minimal): accept targetLang (from JSON or query param)
-        $targetLang = strtoupper((string)($data['targetLang'] ?? $request->get('targetLang', '')));
-
-        if (!$emailId || !$template || !$originalEmailId) {
-            $this->logger->error('[ThemeSwitch] Missing parameters', [
-                'emailId'         => $emailId,
-                'template'        => $template,
-                'originalEmailId' => $originalEmailId,
-            ]);
-
-            return new JsonResponse([
-                'success' => false,
-                'error'   => 'Missing parameters.',
-                'step'    => 'validation',
-            ], 400);
+            return $this->redirectToRoute('mautic_email_index');
         }
 
-        $model         = $this->factory->getModel('email');
-        $email         = $model->getEntity($emailId);
-        $originalEmail = $model->getEntity($originalEmailId);
+        /** @var EmailModel $model */
+        $model = $this->getModel('email');
+        $email = $model->getEntity($emailId);
 
-        if (!$email || !$originalEmail || !$originalEmail->getCustomHtml()) {
-            $this->logger->error('[ThemeSwitch] Invalid email or missing original HTML', [
-                'emailId'         => $emailId,
-                'originalEmailId' => $originalEmailId,
-            ]);
-
-            return new JsonResponse([
-                'success' => false,
-                'error'   => 'Invalid email IDs or missing HTML.',
-                'step'    => 'email-lookup',
-            ], 400);
+        if (null === $email || !$this->security->hasEntityAccess(
+            'email:emails:editown',
+            'email:emails:editother',
+            $email->getCreatedBy()
+        )) {
+            return $this->accessDenied();
         }
 
-        $themePath = $this->factory->getHelper('core_parameters')->get('themes_path') . '/' . $template . '/html/email.html';
-        $this->logger->info('[ThemeSwitch] Theme path resolved', ['path' => $themePath]);
-
-        $newThemeHtml = file_exists($themePath)
-            ? (string) file_get_contents($themePath)
-            : '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
-
-
-        // Validate *MJML* inputs
-        if (
-            !$this->themeSwitcher->isMjmlContent($sourceMjml) ||
-            !$this->themeSwitcher->isMjmlContent($newThemeHtml)
-        ) {
-            $this->logger->warning('[ThemeSwitch] Detected non-MJML content, falling back to default behavior.', [
-                'emailId'  => $emailId,
-                'template' => $template,
-            ]);
-
-            return new JsonResponse([
-                'success' => false,
-                'error'   => 'Non-MJML content detected.',
-                'step'    => 'non-mjml-fallback',
-            ], 400);
+        try {
+            $result = $themeSwitcher->mergeAndSaveEmail(
+                $model,
+                $emailId,
+                $originalEmailId,
+                $template,
+                $translationMode
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('[ThemeSwitch] mergeAction failed: '.$e->getMessage());
+            $result = false;
         }
 
+        if ($result) {
+            $this->addFlashMessage('Theme content merged successfully.', [], 'notice');
+        } else {
+            $this->addFlashMessage('Failed to merge theme content. Check logs for details.', [], 'error');
+        }
 
-        $this->logger->info('[ThemeSwitch] Merging MJML templates...');
-        $mergedHtml = $this->themeSwitcher->mergeMjml(
-            $sourceMjml,     // translated-or-original MJML
-            $newThemeHtml,
-            $translationMode
-        );
-
-
-//        $combinedHtml = $mergedHtml . "\n\n<!-- ORIGINAL CONTENT BELOW -->\n\n" . $email->getCustomHtml();
-//        $email->setCustomHtml($combinedHtml);
-
-        $email->setCustomHtml($mergedHtml);
-        $email->setTemplate($template);
-
-        $this->logger->info('[ThemeSwitch] Saving updated email entity...', [
-            'emailId'  => $emailId,
-            'template' => $template,
-        ]);
-        $model->saveEntity($email);
-
-        return new JsonResponse([
-            'success' => true,
-            'step'    => 'saved',
+        return $this->redirectToRoute('mautic_email_action', [
+            'objectAction' => 'edit',
+            'objectId'     => $emailId,
         ]);
     }
 
-    public function checkEmailTypeAction($id): JsonResponse
+    public function checkEmailTypeAction(int $id): JsonResponse
     {
-        $model = $this->factory->getModel('email');
+        /** @var EmailModel $model */
+        $model = $this->getModel('email');
         $email = $model->getEntity($id);
 
         if (!$email) {
@@ -128,21 +76,16 @@ class ThemeSwitchingController extends CommonController
 
         return new JsonResponse([
             'template'   => $email->getTemplate(),
-            'isCodemode' => $email->getTemplate() === 'mautic_code_mode',
+            'isCodemode' => 'mautic_code_mode' === $email->getTemplate(),
         ]);
     }
 
     public function canTranslateAction(): JsonResponse
     {
-        // Minimal, no container wiring needed
-        $available = \class_exists(\MauticPlugin\LeuchtfeuerTranslationsBundle\Service\MjmlTranslateService::class);
+        $available = class_exists(\MauticPlugin\LeuchtfeuerTranslationsBundle\Service\MjmlTranslateService::class);
 
         return new JsonResponse([
             'available' => $available,
         ]);
     }
-
 }
-
-
-

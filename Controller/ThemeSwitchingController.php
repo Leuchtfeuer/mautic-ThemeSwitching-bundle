@@ -16,15 +16,25 @@ class ThemeSwitchingController extends CommonController
 {
     public function mergeAction(Request $request, ThemeSwitchingService $themeSwitcher): RedirectResponse
     {
-        $emailId         = (int) ($request->attributes->get('emailId') ?? $request->query->get('emailId'));
-        $originalEmailId = (int) $request->query->get('original', $emailId);
-        $template        = InputHelper::clean($request->query->get('template'));
-        $translationMode = $request->query->getBoolean('translationMode', false);
+        $emailId         = (int) ($request->attributes->get('emailId') ?? $request->request->get('emailId'));
+        $originalEmailId = (int) $request->request->get('original', $emailId);
+        $template        = InputHelper::clean($request->request->get('template'));
+        $translationMode = $request->request->getBoolean('translationMode', false);
 
         if ($emailId <= 0 || '' === $template) {
             $this->addFlashMessage('Theme switch failed: missing email or template.', [], 'error');
 
             return $this->redirectToRoute('mautic_email_index');
+        }
+
+        $installedThemes = array_keys($this->factory->getHelper('theme')->getInstalledThemes('email'));
+        if (!in_array($template, $installedThemes, true)) {
+            $this->addFlashMessage('Theme switch failed: invalid theme selected.', [], 'error');
+
+            return $this->redirectToRoute('mautic_email_action', [
+                'objectAction' => 'edit',
+                'objectId'     => $emailId,
+            ]);
         }
 
         /** @var EmailModel $model */

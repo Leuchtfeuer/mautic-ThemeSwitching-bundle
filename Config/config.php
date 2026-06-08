@@ -12,7 +12,7 @@ return [
             'plugin_theme_switch_merge' => [
                 'path'       => '/plugin/theme-switch/merge/{emailId}',
                 'controller' => 'MauticPlugin\\LeuchtfeuerThemeSwitchingBundle\\Controller\\ThemeSwitchingController::mergeAction',
-                'method'     => 'GET',
+                'method'     => 'POST',
             ],
             'plugin_theme_switch_check_email_type' => [
                 'path'       => '/plugin/theme-switch/email-type/{id}',

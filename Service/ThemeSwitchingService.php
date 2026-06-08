@@ -117,30 +117,15 @@ class ThemeSwitchingService
         }
 
         // Load theme file (twig/html) with fallback
-        $themesPath = $this->coreParameters->get('themes_path');
-        if (!$themesPath) {
-            $themesPath = realpath(__DIR__ . '/../../../themes');
-        }
-        if (!$themesPath || !is_dir($themesPath)) {
-            throw new \Exception('[ThemeSwitch] Themes directory not found.');
-        }
-
-        $basePath = rtrim($themesPath, '/') . '/' . $template . '/html/';
-        $twigPath = $basePath . 'email.html.twig';
-        $htmlPath = $basePath . 'email.html';
-
-        if (file_exists($twigPath)) {
-            $newThemeHtml = file_get_contents($twigPath);
-            $this->logger->info('[ThemeSwitch] Found MJML theme file (.twig)', ['path' => $twigPath]);
-        } elseif (file_exists($htmlPath)) {
-            $newThemeHtml = file_get_contents($htmlPath);
-            $this->logger->info('[ThemeSwitch] Found MJML theme file (.html)', ['path' => $htmlPath]);
-        } else {
-            $newThemeHtml = '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
-            $this->logger->error('[ThemeSwitch] MJML theme file not found', [
-                'checkedTwigPath' => $twigPath,
-                'checkedHtmlPath' => $htmlPath,
+        try {
+            $newThemeHtml = $this->loadThemeMjml($template);
+        } catch (\InvalidArgumentException $e) {
+            $this->logger->error('[ThemeSwitch] Invalid theme template.', [
+                'template' => $template,
+                'message'  => $e->getMessage(),
             ]);
+
+            return false;
         }
 
         // Merge (uses markers + translationMode behavior)
@@ -314,6 +299,55 @@ class ThemeSwitchingService
     public function isMjmlContent(string $html): bool
     {
         return stripos($html, '<mjml') !== false && stripos($html, '<mj-body') !== false;
+    }
+
+    /**
+     * @throws \InvalidArgumentException
+     */
+    private function loadThemeMjml(string $template): string
+    {
+        $template = basename(str_replace('\\', '/', $template));
+        if ('' === $template || str_contains($template, '..')) {
+            throw new \InvalidArgumentException('Invalid theme name.');
+        }
+
+        $themesPath = $this->coreParameters->get('themes_path');
+        if (!$themesPath) {
+            $themesPath = realpath(__DIR__ . '/../../../themes');
+        }
+
+        $themesRealPath = $themesPath ? realpath($themesPath) : false;
+        if (false === $themesRealPath || !is_dir($themesRealPath)) {
+            throw new \InvalidArgumentException('Themes directory not found.');
+        }
+
+        $themeDir = realpath($themesRealPath.DIRECTORY_SEPARATOR.$template);
+        if (false === $themeDir || !str_starts_with($themeDir, $themesRealPath.DIRECTORY_SEPARATOR)) {
+            throw new \InvalidArgumentException('Theme directory not found.');
+        }
+
+        $htmlDir = $themeDir.DIRECTORY_SEPARATOR.'html';
+        $twigPath = $htmlDir.DIRECTORY_SEPARATOR.'email.html.twig';
+        $htmlPath = $htmlDir.DIRECTORY_SEPARATOR.'email.html';
+
+        if (file_exists($twigPath)) {
+            $this->logger->info('[ThemeSwitch] Found MJML theme file (.twig)', ['path' => $twigPath]);
+
+            return (string) file_get_contents($twigPath);
+        }
+
+        if (file_exists($htmlPath)) {
+            $this->logger->info('[ThemeSwitch] Found MJML theme file (.html)', ['path' => $htmlPath]);
+
+            return (string) file_get_contents($htmlPath);
+        }
+
+        $this->logger->error('[ThemeSwitch] MJML theme file not found', [
+            'checkedTwigPath' => $twigPath,
+            'checkedHtmlPath' => $htmlPath,
+        ]);
+
+        return '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
     }
 
     /**

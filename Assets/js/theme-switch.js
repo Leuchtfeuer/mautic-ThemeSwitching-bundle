@@ -398,8 +398,7 @@ function showThemeSwitchModal(themeField, theme, $link) {
 
 
 /**
- * Redirect to the builder with the appropriate parameters.
- * (Minimal change: optional targetLang param)
+ * Submit merge request via POST (state-changing action).
  */
 function launchCustomSwitch(theme, useTranslation, targetLang) {
     const emailId = getEmailIdFromDomOrUrl();
@@ -408,17 +407,30 @@ function launchCustomSwitch(theme, useTranslation, targetLang) {
         return;
     }
 
-    const params = new URLSearchParams({
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/s/plugin/theme-switch/merge/${emailId}`;
+
+    const fields = {
         template: theme,
         original: String(emailId),
         translationMode: useTranslation ? '1' : '0',
-    });
+    };
 
     if (targetLang) {
-        params.set('targetLang', targetLang);
+        fields.targetLang = targetLang;
     }
 
-    window.location.href = `/s/plugin/theme-switch/merge/${emailId}?${params.toString()}`;
+    Object.entries(fields).forEach(([name, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
 }
 
 /**

@@ -1,5 +1,6 @@
 <?php
-// tests/Service/ThemeSwitchingServiceTest.php
+
+declare(strict_types=1);
 
 namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Tests\Service;
 
@@ -44,14 +45,13 @@ class ThemeSwitchingServiceTest extends TestCase
             }
         };
 
-        // New constructor: (..., $twig, ContainerInterface $container, ?MjmlTranslateService $translator = null)
         $this->service = new ThemeSwitchingService(
             $logger,
             $paramsHelper,
             $em,
             $twig,
             $container,
-            null // translator not needed for merge tests
+            null
         );
     }
 
@@ -364,6 +364,42 @@ HTML;
         // Should NOT contain old LOCKEDs
         $this->assertStringNotContainsString('<mj-text>O1</mj-text>', $result);
         $this->assertStringNotContainsString('<mj-text>O2</mj-text>', $result);
+    }
+
+    public function testLoadThemeMjmlRejectsPathTraversal(): void
+    {
+        $themesPath = realpath(__DIR__.'/../../../themes');
+        $this->assertNotFalse($themesPath);
+
+        $paramsHelper = $this->createMock(CoreParametersHelper::class);
+        $paramsHelper->method('get')->willReturnCallback(static function (string $key) use ($themesPath) {
+            return 'themes_path' === $key ? $themesPath : null;
+        });
+
+        $service = new ThemeSwitchingService(
+            new NullLogger(),
+            $paramsHelper,
+            $this->createMock(EntityManagerInterface::class),
+            new Environment(new ArrayLoader()),
+            new class implements ContainerInterface {
+                public function get(string $id)
+                {
+                    throw new \RuntimeException("Unexpected container->get('$id')");
+                }
+
+                public function has(string $id): bool
+                {
+                    return false;
+                }
+            },
+            null
+        );
+
+        $method = new \ReflectionMethod(ThemeSwitchingService::class, 'loadThemeMjml');
+        $method->setAccessible(true);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $method->invoke($service, '../../config/local.php');
     }
 
 

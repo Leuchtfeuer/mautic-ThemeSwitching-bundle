@@ -56,15 +56,12 @@ class ThemeSwitchingService
         }
 
         $connection = $this->doctrine->getConnection();
+        $tableName  = $this->getGrapesJsTableName();
 
         // Load MJML from Grapes table
         $originalMjml = $connection->fetchOne(
-            'SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?',
+            "SELECT custom_mjml FROM {$tableName} WHERE email_id = ?",
             [$originalEmailId]
-        );
-        $existingMjml = $connection->fetchOne(
-            'SELECT custom_mjml FROM bundle_grapesjsbuilder WHERE email_id = ?',
-            [$emailId]
         );
 
         if (!$originalMjml) {
@@ -120,30 +117,15 @@ class ThemeSwitchingService
         }
 
         // Load theme file (twig/html) with fallback
-        $themesPath = $this->coreParameters->get('themes_path');
-        if (!$themesPath) {
-            $themesPath = realpath(__DIR__ . '/../../../themes');
-        }
-        if (!$themesPath || !is_dir($themesPath)) {
-            throw new \Exception('[ThemeSwitch] Themes directory not found.');
-        }
-
-        $basePath = rtrim($themesPath, '/') . '/' . $template . '/html/';
-        $twigPath = $basePath . 'email.html.twig';
-        $htmlPath = $basePath . 'email.html';
-
-        if (file_exists($twigPath)) {
-            $newThemeHtml = file_get_contents($twigPath);
-            $this->logger->info('[ThemeSwitch] Found MJML theme file (.twig)', ['path' => $twigPath]);
-        } elseif (file_exists($htmlPath)) {
-            $newThemeHtml = file_get_contents($htmlPath);
-            $this->logger->info('[ThemeSwitch] Found MJML theme file (.html)', ['path' => $htmlPath]);
-        } else {
-            $newThemeHtml = '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
-            $this->logger->error('[ThemeSwitch] MJML theme file not found', [
-                'checkedTwigPath' => $twigPath,
-                'checkedHtmlPath' => $htmlPath,
+        try {
+            $newThemeHtml = $this->loadThemeMjml($template);
+        } catch (\InvalidArgumentException $e) {
+            $this->logger->error('[ThemeSwitch] Invalid theme template.', [
+                'template' => $template,
+                'message'  => $e->getMessage(),
             ]);
+
+            return false;
         }
 
         // Merge (uses markers + translationMode behavior)
@@ -156,18 +138,22 @@ class ThemeSwitchingService
         // Compile Twig placeholders inside MJML (e.g., asset URLs)
         $compiledHtml = $this->compileTwigMjml($mergedHtml, $template);
 
-        // Persist MJML back to Grapes table
-        $connection->update(
-            'bundle_grapesjsbuilder',
+        // Persist MJML back to Grapes table (insert when the row does not exist yet)
+        $updated = $connection->update(
+            $tableName,
             ['custom_mjml' => $compiledHtml],
-            ['email_id'    => $emailId]
+            ['email_id' => $emailId]
         );
+
+        if (0 === $updated) {
+            $connection->insert($tableName, [
+                'email_id'    => $emailId,
+                'custom_mjml' => $compiledHtml,
+            ]);
+        }
 
         // Update email template assignment (do not set customHtml; MJML is source of truth)
         $email->setTemplate($template);
-
-        ###############REMOVE THIS LINE
-//        $email->setCustomHtml($compiledHtml);
 
         $model->saveEntity($email);
 
@@ -308,16 +294,62 @@ class ThemeSwitchingService
     }
 
     /**
-     * Quick heuristic: does it look like MJML?
+     * @throws \InvalidArgumentException
      */
-    public function isMjmlContent(string $html): bool
+    private function loadThemeMjml(string $template): string
     {
-        return stripos($html, '<mjml') !== false && stripos($html, '<mj-body') !== false;
+        $template = basename(str_replace('\\', '/', $template));
+        if ('' === $template || str_contains($template, '..')) {
+            throw new \InvalidArgumentException('Invalid theme name.');
+        }
+
+        $themesPath = $this->coreParameters->get('themes_path');
+        if (!$themesPath) {
+            $themesPath = realpath(__DIR__ . '/../../../themes');
+        }
+
+        $themesRealPath = $themesPath ? realpath($themesPath) : false;
+        if (false === $themesRealPath || !is_dir($themesRealPath)) {
+            throw new \InvalidArgumentException('Themes directory not found.');
+        }
+
+        $themeDir = realpath($themesRealPath.DIRECTORY_SEPARATOR.$template);
+        if (false === $themeDir || !str_starts_with($themeDir, $themesRealPath.DIRECTORY_SEPARATOR)) {
+            throw new \InvalidArgumentException('Theme directory not found.');
+        }
+
+        $htmlDir = $themeDir.DIRECTORY_SEPARATOR.'html';
+        $twigPath = $htmlDir.DIRECTORY_SEPARATOR.'email.html.twig';
+        $htmlPath = $htmlDir.DIRECTORY_SEPARATOR.'email.html';
+
+        if (file_exists($twigPath)) {
+            $this->logger->info('[ThemeSwitch] Found MJML theme file (.twig)', ['path' => $twigPath]);
+
+            return (string) file_get_contents($twigPath);
+        }
+
+        if (file_exists($htmlPath)) {
+            $this->logger->info('[ThemeSwitch] Found MJML theme file (.html)', ['path' => $htmlPath]);
+
+            return (string) file_get_contents($htmlPath);
+        }
+
+        $this->logger->error('[ThemeSwitch] MJML theme file not found', [
+            'checkedTwigPath' => $twigPath,
+            'checkedHtmlPath' => $htmlPath,
+        ]);
+
+        return '<mjml><mj-body><mj-section><mj-column><mj-text>⚠ Theme file not found</mj-text></mj-column></mj-section></mj-body></mjml>';
     }
 
     /**
      * Normalize language strings to what DeepL typically expects (e.g. EN, DE, EN-GB, PT-BR).
      */
+    private function getGrapesJsTableName(): string
+    {
+        return (string) $this->coreParameters->get('db_table_prefix', '').'bundle_grapesjsbuilder';
+    }
+
     private function normalizeTargetLang(?string $raw): string
     {
         if (!$raw) {

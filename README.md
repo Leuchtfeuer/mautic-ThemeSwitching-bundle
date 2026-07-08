@@ -57,7 +57,7 @@ OR
 No additional configuration is required after enabling the plugin. The theme switching functionality is automatically available in the MJML email builder once the plugin is installed and enabled.
 
 
-## User Flow Scenario
+## Usage
 
 ### Starting Point: Email Builder
 1.  A user is working on an email within the Mautic MJML email builder.

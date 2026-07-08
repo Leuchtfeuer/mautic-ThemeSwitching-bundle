@@ -4,6 +4,7 @@ namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Mautic\CoreBundle\Helper\CoreParametersHelper;
+use Mautic\CoreBundle\Helper\PathsHelper;
 use Mautic\EmailBundle\Model\EmailModel;
 use MauticPlugin\LeuchtfeuerTranslationsBundle\Service\MjmlTranslateService;
 use Psr\Log\LoggerInterface;
@@ -16,6 +17,7 @@ class ThemeSwitchingService
         private CoreParametersHelper $coreParameters,
         private EntityManagerInterface $doctrine,
         private Environment $twig,
+        private PathsHelper $pathsHelper,
         private ?MjmlTranslateService $mjmlTranslator = null,
     ) {
     }
@@ -118,7 +120,7 @@ class ThemeSwitchingService
         $updated = $connection->update(
             $tableName,
             ['custom_mjml' => $compiledHtml],
-            ['email_id' => $emailId]
+            ['email_id'    => $emailId]
         );
 
         if (0 === $updated) {
@@ -273,13 +275,8 @@ class ThemeSwitchingService
             throw new \InvalidArgumentException('Invalid theme name.');
         }
 
-        $themesPath = $this->coreParameters->get('themes_path');
-        if (!$themesPath) {
-            $themesPath = realpath(__DIR__.'/../../../themes');
-        }
-
-        $themesRealPath = $themesPath ? realpath($themesPath) : false;
-        if (false === $themesRealPath || !is_dir($themesRealPath)) {
+        $themesRealPath = $this->pathsHelper->getThemesPath();
+        if (!is_dir($themesRealPath)) {
             throw new \InvalidArgumentException('Themes directory not found.');
         }
 
@@ -288,7 +285,7 @@ class ThemeSwitchingService
             throw new \InvalidArgumentException('Theme directory not found.');
         }
 
-        $htmlDir = $themeDir.DIRECTORY_SEPARATOR.'html';
+        $htmlDir  = $themeDir.DIRECTORY_SEPARATOR.'html';
         $twigPath = $htmlDir.DIRECTORY_SEPARATOR.'email.html.twig';
         $htmlPath = $htmlDir.DIRECTORY_SEPARATOR.'email.html';
 

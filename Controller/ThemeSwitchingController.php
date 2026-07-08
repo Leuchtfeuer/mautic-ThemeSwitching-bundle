@@ -23,7 +23,7 @@ class ThemeSwitchingController extends CommonController
         $originalEmailId = (int) $request->request->get('original', $emailId);
         $template        = InputHelper::clean($request->request->get('template'));
         $translationMode = $request->request->getBoolean('translationMode', false);
-        $targetLang = (string) $request->request->get('targetLang', '');
+        $targetLang      = (string) $request->request->get('targetLang', '');
 
         if ($emailId <= 0 || '' === $template) {
             $this->addFlashMessage('Theme switch failed: missing email or template.', [], 'error');

@@ -6,6 +6,7 @@ namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Tests\Unit\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
 use Mautic\CoreBundle\Helper\CoreParametersHelper;
+use Mautic\CoreBundle\Helper\PathsHelper;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -18,18 +19,22 @@ class ThemeSwitchingServiceTest extends TestCase
 
     protected function setUp(): void
     {
-        $logger = new NullLogger();
+        $logger       = new NullLogger();
         $paramsHelper = $this->createMock(CoreParametersHelper::class);
-        $em = $this->createMock(EntityManagerInterface::class);
+        $em           = $this->createMock(EntityManagerInterface::class);
 
         // Create a real Twig environment
         $twig = new Environment(new ArrayLoader());
+
+        $pathsHelper = $this->createMock(PathsHelper::class);
+        $pathsHelper->method('getThemesPath')->willReturn(sys_get_temp_dir());
 
         $this->service = new ThemeSwitchingService(
             $logger,
             $paramsHelper,
             $em,
             $twig,
+            $pathsHelper,
         );
     }
 
@@ -249,7 +254,7 @@ HTML,
     private static function generateManySegments(int $count, bool $isTheme): string
     {
         $segments = [];
-        $prefix = $isTheme ? 'LT' : 'L';
+        $prefix   = $isTheme ? 'LT' : 'L';
 
         for ($i = 1; $i <= $count; ++$i) {
             $segments[] = <<<HTML
@@ -337,17 +342,15 @@ HTML;
 
     public function testLoadThemeMjmlRejectsPathTraversal(): void
     {
-        $themesPath = realpath(__DIR__.'/../../../themes');
-        $this->assertNotFalse($themesPath);
-
-        $paramsHelper = $this->createMock(CoreParametersHelper::class);
-        $paramsHelper->method('get')->willReturnCallback(static fn (string $key): ?string => 'themes_path' === $key ? $themesPath : null);
+        $pathsHelper = $this->createMock(PathsHelper::class);
+        $pathsHelper->method('getThemesPath')->willReturn(sys_get_temp_dir());
 
         $service = new ThemeSwitchingService(
             new NullLogger(),
-            $paramsHelper,
+            $this->createMock(CoreParametersHelper::class),
             $this->createMock(EntityManagerInterface::class),
             new Environment(new ArrayLoader()),
+            $pathsHelper,
         );
 
         $method = new \ReflectionMethod(ThemeSwitchingService::class, 'loadThemeMjml');

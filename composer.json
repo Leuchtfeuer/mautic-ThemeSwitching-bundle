@@ -1,6 +1,6 @@
 {
     "name": "leuchtfeuer/mautic-themeswitching-bundle",
-    "description": "Allows MJML Theme switching without losing all content by introducing markers.<br><br> Theme Switching for MJML works best if your themes include the proper markers. Docs: <a href=\"https://leuchtfeuer.com/mautic/know-how/theme-switching-plugin\" target=\"_blank\">Documentation</a>.",
+    "description": "Allows MJML Theme switching without losing all content by introducing markers.<br><br> Theme Switching for MJML works best if your themes include the proper markers.",
     "license": "GPL-3.0",
     "type": "mautic-plugin",
     "homepage": "https://www.Leuchtfeuer.com",

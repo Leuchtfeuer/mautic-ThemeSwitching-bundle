@@ -6,33 +6,18 @@ use Doctrine\ORM\EntityManagerInterface;
 use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use Mautic\EmailBundle\Model\EmailModel;
 use MauticPlugin\LeuchtfeuerTranslationsBundle\Service\MjmlTranslateService;
-use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Twig\Environment;
 
 class ThemeSwitchingService
 {
-    private LoggerInterface $logger;
-    private CoreParametersHelper $coreParameters;
-    private EntityManagerInterface $doctrine;
-    private Environment $twig;
-    private ContainerInterface $container;
-    private ?MjmlTranslateService $mjmlTranslator;
-
     public function __construct(
-        LoggerInterface $logger,
-        CoreParametersHelper $coreParameters,
-        EntityManagerInterface $doctrine,
-        Environment $twig,
-        ContainerInterface $container,
-        ?MjmlTranslateService $mjmlTranslator = null,
+        private LoggerInterface $logger,
+        private CoreParametersHelper $coreParameters,
+        private EntityManagerInterface $doctrine,
+        private Environment $twig,
+        private ?MjmlTranslateService $mjmlTranslator = null,
     ) {
-        $this->logger          = $logger;
-        $this->coreParameters  = $coreParameters;
-        $this->doctrine        = $doctrine;
-        $this->twig            = $twig;
-        $this->container       = $container;
-        $this->mjmlTranslator  = $mjmlTranslator; // optional (bundle may not be installed)
     }
 
     public function mergeAndSaveEmail(
@@ -41,6 +26,7 @@ class ThemeSwitchingService
         int $originalEmailId,
         string $template,
         bool $translationMode = false,
+        string $targetLang = '',
     ): bool {
         $this->logger->info('[ThemeSwitch] mergeAndSaveEmail() reached.', [
             'emailId'  => $emailId,
@@ -71,18 +57,7 @@ class ThemeSwitchingService
             return false;
         }
 
-        // Read and normalize targetLang from request (?targetLang=XX or XX-YY)
-        $targetLang = '';
-        try {
-            if ($this->container->has('request_stack')) {
-                $req = $this->container->get('request_stack')->getCurrentRequest();
-                if ($req) {
-                    $targetLang = $this->normalizeTargetLang((string) $req->query->get('targetLang', ''));
-                }
-            }
-        } catch (\Throwable $e) {
-            $this->logger->warning('[ThemeSwitch] Could not read targetLang from request.', ['ex' => $e->getMessage()]);
-        }
+        $targetLang = $this->normalizeTargetLang($targetLang);
         $this->logger->info('[ThemeSwitch] targetLang detected', ['targetLang' => '' !== $targetLang ? $targetLang : '(none)']);
 
         // Pre-merge translation (only if Translation Mode + targetLang + translator available)
@@ -154,7 +129,9 @@ class ThemeSwitchingService
         }
 
         // Update email template assignment (do not set customHtml; MJML is source of truth)
+        // Clear builder content so GrapesJS reloads from the grapesjsbuilder table instead of stale cache
         $email->setTemplate($template);
+        $email->setContent([]);
 
         $model->saveEntity($email);
 
@@ -340,7 +317,7 @@ class ThemeSwitchingService
      */
     private function getGrapesJsTableName(): string
     {
-        return (string) $this->coreParameters->get('db_table_prefix', '').'bundle_grapesjsbuilder';
+        return $this->coreParameters->get('db_table_prefix', '').'bundle_grapesjsbuilder';
     }
 
     private function normalizeTargetLang(?string $raw): string
@@ -359,11 +336,8 @@ class ThemeSwitchingService
             'PT_BR' => 'PT-BR',
             'PT_PT' => 'PT-PT',
         ];
-        if (isset($map[$l])) {
-            return $map[$l];
-        }
 
         // If it's already a two-letter or XX-YY form, pass through as-is
-        return $l;
+        return $map[$l] ?? $l;
     }
 }

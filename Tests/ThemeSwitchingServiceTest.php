@@ -8,7 +8,6 @@ use Doctrine\ORM\EntityManagerInterface;
 use Mautic\CoreBundle\Helper\CoreParametersHelper;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
 use PHPUnit\Framework\TestCase;
-use Psr\Container\ContainerInterface;
 use Psr\Log\NullLogger;
 use Twig\Environment;
 use Twig\Loader\ArrayLoader;
@@ -26,33 +25,15 @@ class ThemeSwitchingServiceTest extends TestCase
         // Create a real Twig environment
         $twig = new Environment(new ArrayLoader());
 
-        // Minimal no-op container to satisfy the new constructor signature
-        $container = new class implements ContainerInterface {
-            public function get(string $id)
-            {
-                // If this ever runs during these tests, surface immediately.
-                throw new \RuntimeException("Unexpected container->get('$id') in ThemeSwitchingServiceTest.");
-            }
-
-            public function has(string $id): bool
-            {
-                return false;
-            }
-        };
-
         $this->service = new ThemeSwitchingService(
             $logger,
             $paramsHelper,
             $em,
             $twig,
-            $container,
-            null
         );
     }
 
-    /**
-     * @dataProvider mergeProvider
-     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('mergeProvider')]
     public function testMergeMjmlTemplates(string $old, string $new, bool $translationMode, string $expectedContains): void
     {
         $result = $this->service->mergeMjml($old, $new, $translationMode);
@@ -360,27 +341,13 @@ HTML;
         $this->assertNotFalse($themesPath);
 
         $paramsHelper = $this->createMock(CoreParametersHelper::class);
-        $paramsHelper->method('get')->willReturnCallback(static function (string $key) use ($themesPath) {
-            return 'themes_path' === $key ? $themesPath : null;
-        });
+        $paramsHelper->method('get')->willReturnCallback(static fn (string $key): ?string => 'themes_path' === $key ? $themesPath : null);
 
         $service = new ThemeSwitchingService(
             new NullLogger(),
             $paramsHelper,
             $this->createMock(EntityManagerInterface::class),
             new Environment(new ArrayLoader()),
-            new class implements ContainerInterface {
-                public function get(string $id)
-                {
-                    throw new \RuntimeException("Unexpected container->get('$id')");
-                }
-
-                public function has(string $id): bool
-                {
-                    return false;
-                }
-            },
-            null
         );
 
         $method = new \ReflectionMethod(ThemeSwitchingService::class, 'loadThemeMjml');

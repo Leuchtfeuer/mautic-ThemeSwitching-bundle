@@ -7,13 +7,11 @@ var defaultInitSelectTheme = Mautic.initSelectTheme || function() {};
  * 2) Override Mautic.initSelectTheme to show our custom dialog first.  *
  ************************************************************************/
 Mautic.initSelectTheme = function(themeField) {
-    // ---- (a) Do NOT call defaultInitSelectTheme(themeField) yet ----
-    // Because that would attach Mautic’s default click handler right away,
-    // causing the default "You will lose content" warning to appear first.
-    //
-    // Instead, we remove the default event so we can show our custom dialog first.
-
-    // !!! Those steps were taken from app/bundles/CoreBundle/Assets/js/4.builder.js
+    // Only activate when plugin is published and we are on an email edit/new/clone page.
+    // The marker div is injected server-side via EmailAssetsSubscriber.
+    if (!mQuery('#lf-theme-switch-ready').length) {
+        return defaultInitSelectTheme(themeField);
+    }
 
     // --- Fresh email? Do core's default content setup, since we skip Mautic's handler ---
     var customHtml = mQuery('textarea.builder-html');
@@ -29,8 +27,6 @@ Mautic.initSelectTheme = function(themeField) {
             Mautic.setThemeHtml(Mautic.builderTheme);
         }
     }
-
-
 
     const $links = mQuery('.theme-list .select-theme-link');
 

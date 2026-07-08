@@ -1,17 +1,21 @@
-# Theme Switching by Leuchtfeuer Plugin
+# Theme Switching by Leuchtfeuer
+
+## Overview
 
 Allows MJML Theme switching without losing all content by introducing markers. This plugin enhances Mautic's email builder by providing advanced options for changing MJML themes while intelligently preserving your existing content.
 
-
 ## Description
 
-The **Theme Switching by Leuchtfeuer Plugin** for Mautic provides a sophisticated way to change MJML email themes without the common issue of losing all previously crafted content. By utilizing special HTML comment markers (`<!-- LOCKED_START -->` and `<!-- LOCKED_END -->`), users can define sections within their MJML that should be treated specifically during a theme switch. The plugin offers "Smart Merge" and "Translation Mode" options, giving users fine-grained control over how content from the old theme is integrated into the new one.
+The **Theme Switching by Leuchtfeuer** plugin for Mautic provides a sophisticated way to change MJML email themes without the common issue of losing all previously crafted content. By utilizing special HTML comment markers (`<!-- LOCKED_START -->` and `<!-- LOCKED_END -->`), users can define sections within their MJML that should be treated specifically during a theme switch. The plugin offers "Smart Merge" and "Translation Mode" options, giving users fine-grained control over how content from the old theme is integrated into the new one.
 
 This plugin is ideal for users who frequently update email designs, want to maintain brand consistency across different templates, or need to apply stylistic variations (e.g., for translations or A/B testing) to existing content without starting from scratch.
 
 ## Requirements / Version Support
-- Mautic 5.1+
-- PHP 8.1+
+
+> [!TIP]
+> Other releases of this plugin may cover different Mautic versions!
+- Mautic 7.x
+- PHP 8.2+
 - GrapesJS Builder plugin (MJML emails)
 - For the Translation mode you'll need the Leuchtfeuer Translation Plugin: https://github.com/Leuchtfeuer/mautic-Translations-bundle
 
@@ -30,34 +34,28 @@ Smart Merge runs entirely inside this plugin (no Mautic core patch required).
 -   **Client-Side Override**: Dynamically modifies Mautic's theme selection JavaScript to inject its custom functionality.
 
 
-## Installation Instructions
+## Installation
 
-### Step 1: Download the Plugin
-1. Download the plugin repository as a ZIP file or clone it from the repository.
+### Composer
+This plugin can be installed through composer.
 
-### Step 2: Place the Plugin in the Correct Directory
-1. Extract the plugin files and move the folder to the `plugins/` directory of your Mautic installation.
-2. Rename the folder to `LeuchtfeuerThemeSwitchingBundle`.
+### Manual Installation
+Alternatively, it can be installed manually:
+- Download the plugin
+- Unzip to the Mautic `plugins` directory
+- Rename folder to `LeuchtfeuerThemeSwitchingBundle`
+- In the Mautic backend, go to the `Plugins` page as an administrator
+- Click on the `Install/Upgrade Plugins` button to install the Plugin.
 
-### Step 3: Clear the Mautic Cache
-Run the following command to clear the cache and ensure Mautic recognizes the new plugin:
+OR
 
-```bash
-sudo /usr/bin/php /path-to-mautic/bin/console cache:clear
-```
+- If you have shell access, execute `php bin/console cache:clear` and `php bin/console mautic:plugins:reload` to install the plugins.
 
-### Step 4: Install the Plugin
 
-1. Navigate to the **Plugins** page in the Mautic admin panel.
-2. Click the "Install/Upgrade Plugins" button to register the new plugin.
+## Configuration
 
-Alternatively, you can install the plugin via command line:
+No additional configuration is required after enabling the plugin. The theme switching functionality is automatically available in the MJML email builder once the plugin is installed and enabled.
 
-```bash
-sudo /usr/bin/php /path-to-mautic/bin/console mautic:plugins:install
-```
-
----
 
 ## User Flow Scenario
 
@@ -73,10 +71,10 @@ sudo /usr/bin/php /path-to-mautic/bin/console mautic:plugins:install
 2.  It first makes a quick background check to see if the current email is using Mautic's "Code Mode".
     *   **If in Code Mode**: The plugin steps aside, and Mautic's standard theme change process proceeds (typically replacing all content).
     *   **If not in Code Mode (MJML Builder)**: A modal dialog appears, presenting the user with three options:
-        *   **"🔧 Smart Merge"**: Merges content intelligently. Uses the new theme's `<mj-head>` and `<mj-body>` attributes. `LOCKED` sections from the new theme replace corresponding `LOCKED` sections from the old. Original unlocked content is kept. New unlocked content from the selected theme is appended.
-        *   **"🌐 Translation Mode"**: Similar to Smart Merge, but does *not* append new unlocked content from the target theme. This is useful for applying stylistic changes or translating content within an existing structure.
-        *   **"🧼 Mautic Default"**: Bypasses the plugin's enhanced logic and uses Mautic's standard theme change, which usually replaces all existing content with the new theme's default content.
-        *   **"❌ Cancel"**: Closes the modal, and no theme change occurs.
+        *   **"Smart Merge"**: Merges content intelligently. Uses the new theme's `<mj-head>` and `<mj-body>` attributes. `LOCKED` sections from the new theme replace corresponding `LOCKED` sections from the old. Original unlocked content is kept. New unlocked content from the selected theme is appended.
+        *   **"Translation Mode"**: Similar to Smart Merge, but does *not* append new unlocked content from the target theme. This is useful for applying stylistic changes or translating content within an existing structure.
+        *   **"Mautic Default"**: Bypasses the plugin's enhanced logic and uses Mautic's standard theme change, which usually replaces all existing content with the new theme's default content.
+        *   **"Cancel"**: Closes the modal, and no theme change occurs.
 
 ### Processing the Theme Switch (Smart Merge / Translation Mode)
 1.  If the user selects "Smart Merge" or "Translation Mode":
@@ -87,41 +85,6 @@ sudo /usr/bin/php /path-to-mautic/bin/console mautic:plugins:install
 -   To make content "editable" or "preserveable" across theme changes (unlocked content), simply place it outside any `LOCKED` blocks.
 -   To define sections that are part of the theme's structure and should be replaced by the new theme's corresponding `LOCKED` sections (e.g., headers, footers, specific structural elements), enclose them within `<!-- LOCKED_START -->` and `<!-- LOCKED_END -->`.
 
-
-mjml
-<mjml>
-  <mj-head>
-    <!-- Head content from new theme will be used -->
-  </mj-head>
-  <mj-body> <!-- Body attributes from new theme will be used -->
-
-    <!-- LOCKED_START -->
-    <mj-section background-color="#efefef">
-      <mj-column>
-        <mj-text>This is a locked header section. It will be replaced by the new theme's first LOCKED block.</mj-text>
-      </mj-column>
-    </mj-section>
-    <!-- LOCKED_END -->
-
-    <mj-section>
-      <mj-column>
-        <mj-text>This is unlocked content. It will be preserved.</mj-text>
-        <mj-image src="path/to/image.png" />
-      </mj-column>
-    </mj-section>
-
-    <!-- LOCKED_START -->
-    <mj-section background-color="#efefef">
-      <mj-column>
-        <mj-text>This is a locked footer section. It will be replaced by the new theme's second LOCKED block.</mj-text>
-      </mj-column>
-    </mj-section>
-    <!-- LOCKED_END -->
-
-  </mj-body>
-</mjml>
-
-<!-- User Note: Manually replace the '***' lines above and below with triple backticks (```) if your chat display supports standard Markdown code blocks. -->
 
 ---
 
@@ -145,23 +108,41 @@ mjml
 -   **`Service/`**: Contains business logic.
     -   `ThemeSwitchingService.php`: The heart of the plugin. Contains the logic for parsing old and new MJML, identifying `LOCKED` and unlocked sections, and merging them based on the selected mode (Smart Merge or Translation Mode).
 -   **`Tests/`**: Contains unit tests.
-    -   `ThemeSwitchingServiceTest.php`: PHPUnit tests for the `ThemeSwitchingService` to ensure merge logic works as expected.
+    -   `Unit/Service/ThemeSwitchingServiceTest.php`: PHPUnit tests for the `ThemeSwitchingService` to ensure merge logic works as expected.
 -   **`LeuchtfeuerThemeSwitchingBundle.php`**: The main bundle class, extending `PluginBundleBase`.
 -   **`composer.json`**: Project metadata, dependencies, and autoloading configuration.
 
 ---
 
-## Authors
+## Troubleshooting
 
-- **Iuri Jorbenadze** - [Email](mailto:jorbenadze2001@gmail.com)
--   **Leuchtfeuer Digital Marketing GmbH** - [Email](mailto:mautic-plugins@Leuchtfeuer.com)
+Make sure you have not only installed but also enabled the Plugin.
+If things are still funny, please try:
+```
+php bin/console cache:clear
+```
 
-For more information or support, visit [Leuchtfeuer Digital Marketing](https://leuchtfeuer.com).
+## Change log
+- https://github.com/Leuchtfeuer/mautic-ThemeSwitching-bundle/releases
 
----
+## Sponsoring & Commercial Support
+We are continuously improving our plugins. If you are requiring priority support or custom features,
+please contact us at mautic-plugins@leuchtfeuer.com.
+
+## Get Involved
+Feel free to open issues or submit pull requests on [GitHub](https://github.com/Leuchtfeuer/mautic-ThemeSwitching-bundle).
+Follow the contribution guidelines in `CONTRIBUTING.md`.
+
+## Credits
+@iuri-jorbenadze
+@leuchtfeuer
+
+## Author
+Leuchtfeuer Digital Marketing GmbH
+
+Please raise any issues in GitHub.
+For all other things, please email mautic-plugins@Leuchtfeuer.com
 
 ## License
 
 This plugin is licensed under the GPL v3 License.
-
----

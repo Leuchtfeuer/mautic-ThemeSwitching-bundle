@@ -25,7 +25,7 @@ class ThemeSwitchingService
         EntityManagerInterface $doctrine,
         Environment $twig,
         ContainerInterface $container,
-        ?MjmlTranslateService $mjmlTranslator = null
+        ?MjmlTranslateService $mjmlTranslator = null,
     ) {
         $this->logger          = $logger;
         $this->coreParameters  = $coreParameters;
@@ -37,10 +37,10 @@ class ThemeSwitchingService
 
     public function mergeAndSaveEmail(
         EmailModel $model,
-                   $emailId,
-                   $originalEmailId,
+        int $emailId,
+        int $originalEmailId,
         string $template,
-        bool $translationMode = false
+        bool $translationMode = false,
     ): bool {
         $this->logger->info('[ThemeSwitch] mergeAndSaveEmail() reached.', [
             'emailId'  => $emailId,
@@ -52,6 +52,7 @@ class ThemeSwitchingService
         $originalEmail = $model->getEntity($originalEmailId);
         if (!$email || !$originalEmail) {
             $this->logger->error('[ThemeSwitch] Invalid email entity.');
+
             return false;
         }
 
@@ -66,6 +67,7 @@ class ThemeSwitchingService
 
         if (!$originalMjml) {
             $this->logger->error('[ThemeSwitch] Missing original MJML source.', ['originalEmailId' => $originalEmailId]);
+
             return false;
         }
 
@@ -81,10 +83,10 @@ class ThemeSwitchingService
         } catch (\Throwable $e) {
             $this->logger->warning('[ThemeSwitch] Could not read targetLang from request.', ['ex' => $e->getMessage()]);
         }
-        $this->logger->info('[ThemeSwitch] targetLang detected', ['targetLang' => $targetLang !== '' ? $targetLang : '(none)']);
+        $this->logger->info('[ThemeSwitch] targetLang detected', ['targetLang' => '' !== $targetLang ? $targetLang : '(none)']);
 
         // Pre-merge translation (only if Translation Mode + targetLang + translator available)
-        if ($translationMode && $targetLang !== '') {
+        if ($translationMode && '' !== $targetLang) {
             if ($this->mjmlTranslator) {
                 try {
                     $this->logger->info('[ThemeSwitch] Calling MjmlTranslateService.translateMjml()', ['lang' => $targetLang]);
@@ -99,7 +101,6 @@ class ThemeSwitchingService
                     } else {
                         $this->logger->warning('[ThemeSwitch] Translator returned unexpected type; using original MJML.');
                     }
-
                 } catch (\Throwable $e) {
                     $this->logger->warning('[ThemeSwitch] Translation failed; proceeding without translation', [
                         'ex'   => $e->getMessage(),
@@ -160,6 +161,9 @@ class ThemeSwitchingService
         return true;
     }
 
+    /**
+     * @return array<mixed>
+     */
     private function extractLockedSections(string $mjml): array
     {
         preg_match_all(
@@ -176,20 +180,6 @@ class ThemeSwitchingService
         return preg_replace('/<!--\s*LOCKED_START\s*-->(.*?)<!--\s*LOCKED_END\s*-->/s', '', $mjml);
     }
 
-    private function replaceLockedSections(array $oldBlocks, array $newBlocks): array
-    {
-        $merged = [];
-        $count  = max(count($oldBlocks), count($newBlocks));
-        for ($i = 0; $i < $count; $i++) {
-            if (isset($newBlocks[$i])) {
-                $merged[] = $newBlocks[$i];
-            } elseif (isset($oldBlocks[$i])) {
-                $merged[] = $oldBlocks[$i];
-            }
-        }
-        return $merged;
-    }
-
     public function mergeMjml(string $oldMjml, string $newMjml, bool $translationMode): string
     {
         // Extract <mj-head> from new theme
@@ -198,7 +188,7 @@ class ThemeSwitchingService
 
         // Extract full <mj-body> opening tag (with attributes) from new theme
         preg_match('/<mj-body([^>]*)>/i', $newMjml, $bodyTagMatch);
-        $bodyAttributes = !empty($bodyTagMatch[1]) ? ' ' . $bodyTagMatch[1] : '';
+        $bodyAttributes = !empty($bodyTagMatch[1]) ? ' '.$bodyTagMatch[1] : '';
 
         // Extract body content (excluding opening/closing tags)
         preg_match('/<mj-body[^>]*>(.*?)<\/mj-body>/s', $oldMjml, $oldBodyMatch);
@@ -217,25 +207,23 @@ class ThemeSwitchingService
         $newLockedIndex = 0;
 
         foreach ($oldSegments as $segment) {
-            if ($segment['type'] === 'locked') {
+            if ('locked' === $segment['type']) {
                 // Replace with new theme's LOCKED block if available
                 if (isset($newLocked[$newLockedIndex])) {
                     $mergedSegments[] = $newLocked[$newLockedIndex];
-                    $newLockedIndex++;
+                    ++$newLockedIndex;
                 }
-                // If not, do nothing: extra old locked blocks are dropped
+            // If not, do nothing: extra old locked blocks are dropped
             } else {
                 // Preserve unlocked content
                 $mergedSegments[] = $segment['content'];
             }
         }
 
-
-
         // Append any remaining locked blocks from new theme
         while ($newLockedIndex < count($newLocked)) {
             $mergedSegments[] = $newLocked[$newLockedIndex];
-            $newLockedIndex++;
+            ++$newLockedIndex;
         }
 
         // Combine segments
@@ -243,7 +231,7 @@ class ThemeSwitchingService
 
         // Only in Smart Merge, append theme's unlocked content
         if (!$translationMode && !empty($newUnlocked)) {
-            $mergedBodyContent .= "\n\n" . $newUnlocked;
+            $mergedBodyContent .= "\n\n".$newUnlocked;
         }
 
         // Build final MJML with preserved <mj-body> attributes
@@ -264,15 +252,20 @@ class ThemeSwitchingService
     {
         try {
             $templateObject = $this->twig->createTemplate($rawMjml);
+
             return $templateObject->render([
                 'template' => $themeAlias,
             ]);
         } catch (\Exception $e) {
-            $this->logger->warning('[ThemeSwitch] Failed to compile twig placeholders: ' . $e->getMessage());
+            $this->logger->warning('[ThemeSwitch] Failed to compile twig placeholders: '.$e->getMessage());
+
             return $rawMjml;
         }
     }
 
+    /**
+     * @return array<mixed>
+     */
     private function splitIntoSegments(string $bodyContent): array
     {
         $pattern = '/(<!--\s*LOCKED_START\s*-->.*?<!--\s*LOCKED_END\s*-->)|((?:(?!<!--\s*LOCKED_(?:START|END)\s*-->).)+)/s';
@@ -305,7 +298,7 @@ class ThemeSwitchingService
 
         $themesPath = $this->coreParameters->get('themes_path');
         if (!$themesPath) {
-            $themesPath = realpath(__DIR__ . '/../../../themes');
+            $themesPath = realpath(__DIR__.'/../../../themes');
         }
 
         $themesRealPath = $themesPath ? realpath($themesPath) : false;

@@ -1,12 +1,13 @@
-name: CI Workflow.
+name: CI Workflow
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, review_requested]
 
 jobs:
-  ai-review:
-    name: AI Code Review
-    uses: Leuchtfeuer/mautic-ci-runner/.github/workflows/ai_review.yaml@212d55114eb09d887b16bf414a5fec5d3919c212
+  ci-workflow:
+    name: CI
+    uses: Leuchtfeuer/mautic-ci-runner/.github/workflows/complete-ci.yaml@main
     with:
       skipCodeReview: true
+    secrets:
+      PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}

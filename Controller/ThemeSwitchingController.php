@@ -6,15 +6,18 @@ namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Controller;
 
 use Mautic\CoreBundle\Controller\CommonController;
 use Mautic\CoreBundle\Helper\InputHelper;
+use Mautic\CoreBundle\Helper\ThemeHelper;
 use Mautic\EmailBundle\Model\EmailModel;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class ThemeSwitchingController extends CommonController
 {
-    public function mergeAction(Request $request, ThemeSwitchingService $themeSwitcher): RedirectResponse
+    public function mergeAction(Request $request, ThemeSwitchingService $themeSwitcher, ThemeHelper $themeHelper, LoggerInterface $mauticLogger): RedirectResponse
     {
         $emailId         = (int) ($request->attributes->get('emailId') ?? $request->request->get('emailId'));
         $originalEmailId = (int) $request->request->get('original', $emailId);
@@ -27,7 +30,7 @@ class ThemeSwitchingController extends CommonController
             return $this->redirectToRoute('mautic_email_index');
         }
 
-        $installedThemes = array_keys($this->factory->getHelper('theme')->getInstalledThemes('email'));
+        $installedThemes = array_keys($themeHelper->getInstalledThemes('email'));
         if (!in_array($template, $installedThemes, true)) {
             $this->addFlashMessage('Theme switch failed: invalid theme selected.', [], 'error');
 
@@ -46,7 +49,7 @@ class ThemeSwitchingController extends CommonController
             'email:emails:editother',
             $email->getCreatedBy()
         )) {
-            return $this->accessDenied();
+            throw new AccessDeniedHttpException($this->translator->trans('mautic.core.url.error.401', ['%url%' => $request->getRequestUri()]));
         }
 
         try {
@@ -58,7 +61,7 @@ class ThemeSwitchingController extends CommonController
                 $translationMode
             );
         } catch (\Throwable $e) {
-            $this->logger->error('[ThemeSwitch] mergeAction failed: '.$e->getMessage());
+            $mauticLogger->error('[ThemeSwitch] mergeAction failed: '.$e->getMessage());
             $result = false;
         }
 

@@ -7,6 +7,7 @@ namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\EventListener;
 use Mautic\CoreBundle\CoreEvents;
 use Mautic\CoreBundle\Event\CustomAssetsEvent;
 use Mautic\PluginBundle\Helper\IntegrationHelper;
+use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Integration\Config;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -15,6 +16,7 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
     public function __construct(
         private RequestStack $requestStack,
         private IntegrationHelper $integrationHelper,
+        private Config $config,
     ) {
     }
 
@@ -37,8 +39,7 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $integration = $this->integrationHelper->getIntegrationObject('ThemeSwitching');
-        if (!$integration || !$integration->getIntegrationSettings()->getIsPublished()) {
+        if (!$this->config->isPublished()) {
             return;
         }
 

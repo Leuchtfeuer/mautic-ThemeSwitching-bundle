@@ -443,7 +443,7 @@ function getEmailIdFromDomOrUrl() {
 }
 
 function fetchEmailTemplate(emailId) {
-    return fetch(`/s/plugin/theme-switch/email-type/${emailId}`)
+    return fetch(`/s/plugin/theme-switch/email-type/${emailId}`, { headers: { 'Accept': 'application/json' } })
         .then(resp => {
             if (!resp.ok) {
                 throw new Error(`Failed to fetch email info: HTTP ${resp.status}`);

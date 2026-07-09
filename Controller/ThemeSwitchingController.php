@@ -89,6 +89,10 @@ class ThemeSwitchingController extends CommonController
             return new JsonResponse(['error' => 'Email not found.'], 404);
         }
 
+        if (!$this->security->hasEntityAccess('email:emails:viewown', 'email:emails:viewother', $email->getCreatedBy())) {
+            throw new AccessDeniedHttpException();
+        }
+
         return new JsonResponse([
             'template'   => $email->getTemplate(),
             'isCodemode' => 'mautic_code_mode' === $email->getTemplate(),

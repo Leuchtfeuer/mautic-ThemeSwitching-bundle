@@ -88,32 +88,6 @@ No additional configuration is required after enabling the plugin. The theme swi
 
 ---
 
-## Development Details
-
-### Directory Structure
-
--   **`Assets/`**: Contains static assets.
-    -   `img/LeuchtfeuerThemeSwitchingBundle.png`: Plugin icon.
-    -   `js/theme-switch.js`: Core client-side JavaScript. Overrides Mautic's default theme selection behavior (`Mautic.initSelectTheme`) to display the custom modal and prepares parameters for the backend merge process.
--   **`Config/`**: Plugin configuration files.
-    -   `config.php`: Main plugin definition, including name, description, author, version, routes, and icon.
--   **`Controller/`**: Handles HTTP requests.
-    -   `ThemeSwitchingController.php`: Contains actions like `checkEmailTypeAction` (used by `theme-switch.js` to determine if an email is in code mode).
--   **`EventListener/`**: Contains event subscribers.
-    -   `BuilderSubscriber.php`: Subscribes to Mautic's `CoreEvents::BUILDER_ON_LOAD`. When the builder loads with specific URL parameters (set by `theme-switch.js` after user interaction), this subscriber triggers the `ThemeSwitchingService` to perform the actual content merge.
--   **`Integration/`**: Defines how the plugin integrates with Mautic.
-    -   `ThemeSwitchingIntegration.php`: Registers the plugin with Mautic, provides display name, icon, and settings form modifications (e.g., help text).
--   **`Resources/`**:
-    -   `config/services.yaml`: Defines Symfony service configurations for the plugin's classes (e.g., controllers, services, subscribers).
--   **`Service/`**: Contains business logic.
-    -   `ThemeSwitchingService.php`: The heart of the plugin. Contains the logic for parsing old and new MJML, identifying `LOCKED` and unlocked sections, and merging them based on the selected mode (Smart Merge or Translation Mode).
--   **`Tests/`**: Contains unit tests.
-    -   `Unit/Service/ThemeSwitchingServiceTest.php`: PHPUnit tests for the `ThemeSwitchingService` to ensure merge logic works as expected.
--   **`LeuchtfeuerThemeSwitchingBundle.php`**: The main bundle class, extending `PluginBundleBase`.
--   **`composer.json`**: Project metadata, dependencies, and autoloading configuration.
-
----
-
 ## Troubleshooting
 
 Make sure you have not only installed but also enabled the Plugin.

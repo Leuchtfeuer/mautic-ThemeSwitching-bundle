@@ -8,13 +8,14 @@ use Mautic\CoreBundle\CoreEvents;
 use Mautic\CoreBundle\Event\CustomContentEvent;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Integration\Config;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 class EmailAssetsSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private RequestStack $requestStack,
-        private Config $config,
+        private readonly RequestStack $requestStack,
+        private readonly Config $config,
     ) {
     }
 
@@ -32,12 +33,8 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
         }
 
         $request = $this->requestStack->getCurrentRequest();
-        if (null === $request || 'mautic_email_action' !== $request->attributes->get('_route')) {
-            return;
-        }
 
-        $objectAction = $request->attributes->get('objectAction');
-        if (!in_array($objectAction, ['edit', 'new', 'clone'], true)) {
+        if (null === $request) {
             return;
         }
 
@@ -45,6 +42,44 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
             return;
         }
 
+        $route = $this->getRoute($request) ?? $this->getAjaxRoute($request);
+        if ('mautic_email_action' !== $route) {
+            return;
+        }
+
+        if (!in_array($this->getObjectAction($request), ['edit', 'new', 'clone'], true)) {
+            return;
+        }
+
         $event->addContent('<div id="lf-theme-switch-ready" style="display:none"></div>');
+    }
+
+    private function getRoute(Request $request): ?string
+    {
+        $route = $request->attributes->get('_route');
+
+        return is_string($route) ? $route : null;
+    }
+
+    private function getAjaxRoute(Request $request): ?string
+    {
+        $ajaxRoute = $request->attributes->get('ajaxRoute');
+        $route = is_array($ajaxRoute) ? ($ajaxRoute['_route'] ?? null) : null;
+
+        return is_string($route) ? $route : null;
+    }
+
+    private function getObjectAction(Request $request): ?string
+    {
+        $objectAction = $request->attributes->get('objectAction');
+        if (is_string($objectAction)) {
+            return $objectAction;
+        }
+
+        $ajaxRoute = $request->attributes->get('ajaxRoute');
+        $routeParams = is_array($ajaxRoute) ? ($ajaxRoute['_route_params'] ?? null) : null;
+        $objectAction = is_array($routeParams) ? ($routeParams['objectAction'] ?? null) : null;
+
+        return is_string($objectAction) ? $objectAction : null;
     }
 }

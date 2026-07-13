@@ -15,12 +15,12 @@ use Twig\Environment;
 class ThemeSwitchingService
 {
     public function __construct(
-        private LoggerInterface $logger,
-        private CoreParametersHelper $coreParameters,
-        private EntityManagerInterface $doctrine,
-        private Environment $twig,
-        private PathsHelper $pathsHelper,
-        private ?MjmlTranslateService $mjmlTranslator = null,
+        private readonly LoggerInterface $logger,
+        private readonly CoreParametersHelper $coreParameters,
+        private readonly EntityManagerInterface $doctrine,
+        private readonly Environment $twig,
+        private readonly PathsHelper $pathsHelper,
+        private readonly ?MjmlTranslateService $mjmlTranslator = null,
     ) {
     }
 

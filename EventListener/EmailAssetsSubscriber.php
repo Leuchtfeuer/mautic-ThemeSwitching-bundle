@@ -42,7 +42,7 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $route = $this->getRoute($request) ?? $this->getAjaxRoute($request);
+        $route = $this->getAjaxRoute($request) ?? $this->getRoute($request);
         if ('mautic_email_action' !== $route) {
             return;
         }
@@ -71,14 +71,15 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
 
     private function getObjectAction(Request $request): ?string
     {
-        $objectAction = $request->attributes->get('objectAction');
+        $ajaxRoute = $request->attributes->get('ajaxRoute');
+        $routeParams = is_array($ajaxRoute) ? ($ajaxRoute['_route_params'] ?? null) : null;
+        $objectAction = is_array($routeParams) ? ($routeParams['objectAction'] ?? null) : null;
+
         if (is_string($objectAction)) {
             return $objectAction;
         }
 
-        $ajaxRoute = $request->attributes->get('ajaxRoute');
-        $routeParams = is_array($ajaxRoute) ? ($ajaxRoute['_route_params'] ?? null) : null;
-        $objectAction = is_array($routeParams) ? ($routeParams['objectAction'] ?? null) : null;
+        $objectAction = $request->attributes->get('objectAction');
 
         return is_string($objectAction) ? $objectAction : null;
     }

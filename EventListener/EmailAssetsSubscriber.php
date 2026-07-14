@@ -64,15 +64,15 @@ class EmailAssetsSubscriber implements EventSubscriberInterface
     private function getAjaxRoute(Request $request): ?string
     {
         $ajaxRoute = $request->attributes->get('ajaxRoute');
-        $route = is_array($ajaxRoute) ? ($ajaxRoute['_route'] ?? null) : null;
+        $route     = is_array($ajaxRoute) ? ($ajaxRoute['_route'] ?? null) : null;
 
         return is_string($route) ? $route : null;
     }
 
     private function getObjectAction(Request $request): ?string
     {
-        $ajaxRoute = $request->attributes->get('ajaxRoute');
-        $routeParams = is_array($ajaxRoute) ? ($ajaxRoute['_route_params'] ?? null) : null;
+        $ajaxRoute    = $request->attributes->get('ajaxRoute');
+        $routeParams  = is_array($ajaxRoute) ? ($ajaxRoute['_route_params'] ?? null) : null;
         $objectAction = is_array($routeParams) ? ($routeParams['objectAction'] ?? null) : null;
 
         if (is_string($objectAction)) {

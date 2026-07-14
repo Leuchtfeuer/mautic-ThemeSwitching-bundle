@@ -2,71 +2,52 @@
 
 declare(strict_types=1);
 
-namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Tests\Service;
+namespace MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Tests\Unit\Service;
 
-
+use Doctrine\ORM\EntityManagerInterface;
+use Mautic\CoreBundle\Helper\CoreParametersHelper;
+use Mautic\CoreBundle\Helper\PathsHelper;
 use MauticPlugin\LeuchtfeuerThemeSwitchingBundle\Service\ThemeSwitchingService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Psr\Container\ContainerInterface;
-
-use Mautic\CoreBundle\Helper\CoreParametersHelper;
-use Doctrine\ORM\EntityManagerInterface;
-
-use Twig\Loader\ArrayLoader;
 use Twig\Environment;
-
+use Twig\Loader\ArrayLoader;
 
 class ThemeSwitchingServiceTest extends TestCase
 {
     private ThemeSwitchingService $service;
 
-
-
     protected function setUp(): void
     {
-        $logger = new NullLogger();
+        $logger       = new NullLogger();
         $paramsHelper = $this->createMock(CoreParametersHelper::class);
-        $em = $this->createMock(EntityManagerInterface::class);
+        $em           = $this->createMock(EntityManagerInterface::class);
 
         // Create a real Twig environment
         $twig = new Environment(new ArrayLoader());
 
-        // Minimal no-op container to satisfy the new constructor signature
-        $container = new class implements ContainerInterface {
-            public function get(string $id)
-            {
-                // If this ever runs during these tests, surface immediately.
-                throw new \RuntimeException("Unexpected container->get('$id') in ThemeSwitchingServiceTest.");
-            }
-            public function has(string $id): bool
-            {
-                return false;
-            }
-        };
+        $pathsHelper = $this->createMock(PathsHelper::class);
+        $pathsHelper->method('getThemesPath')->willReturn(sys_get_temp_dir());
 
         $this->service = new ThemeSwitchingService(
             $logger,
             $paramsHelper,
             $em,
             $twig,
-            $container,
-            null
+            $pathsHelper,
         );
     }
 
-
-
-    /**
-     * @dataProvider mergeProvider
-     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('mergeProvider')]
     public function testMergeMjmlTemplates(string $old, string $new, bool $translationMode, string $expectedContains): void
     {
         $result = $this->service->mergeMjml($old, $new, $translationMode);
         $this->assertStringContainsString($expectedContains, $result);
     }
 
-
+    /**
+     * @return array<mixed>
+     */
     public static function mergeProvider(): array
     {
         return [
@@ -92,7 +73,7 @@ HTML,
 </mjml>
 HTML,
                 true,
-                '<mj-text>Keep this content</mj-text>'
+                '<mj-text>Keep this content</mj-text>',
             ],
 
             'non-translation mode adds unlocked' => [
@@ -107,7 +88,7 @@ HTML,
 </mj-body></mjml>
 HTML,
                 false,
-                '<mj-text>From Theme</mj-text>'
+                '<mj-text>From Theme</mj-text>',
             ],
 
             'more locked in old than new' => [
@@ -128,7 +109,7 @@ HTML,
 </mj-body></mjml>
 HTML,
                 false,
-                '<mj-text>LT2</mj-text>'
+                '<mj-text>LT2</mj-text>',
             ],
 
             'more locked in new than old' => [
@@ -149,7 +130,7 @@ HTML,
 </mj-body></mjml>
 HTML,
                 false,
-                '<mj-text>LT3</mj-text>'
+                '<mj-text>LT3</mj-text>',
             ],
 
             'multiple locked in a row' => [
@@ -168,7 +149,7 @@ HTML,
 </mj-body></mjml>
 HTML,
                 true,
-                '<mj-text>A1</mj-text>'
+                '<mj-text>A1</mj-text>',
             ],
 
             'no locked in old' => [
@@ -185,7 +166,7 @@ HTML,
 </mj-body></mjml>
 HTML,
                 false,
-                '<mj-text>LT1</mj-text>'
+                '<mj-text>LT1</mj-text>',
             ],
 
             'no locked in new' => [
@@ -202,85 +183,80 @@ HTML,
 </mj-body></mjml>
 HTML,
                 true,
-                '<mj-text>A1</mj-text>'
+                '<mj-text>A1</mj-text>',
             ],
 
-        'empty old and new' => [
-        '', '', false, '<mjml>'
-    ],
+            'empty old and new' => [
+                '', '', false, '<mjml>',
+            ],
 
             'missing mj-head in new' => [
-        <<<HTML
+                <<<HTML
 <mjml><mj-head></mj-head><mj-body><mj-section><mj-text>Keep</mj-text></mj-section></mj-body></mjml>
 HTML,
-        <<<HTML
+                <<<HTML
 <mjml><mj-body><mj-section><mj-text>New</mj-text></mj-section></mj-body></mjml>
 HTML,
-        false,
-        '<mj-head></mj-head>'
-    ],
+                false,
+                '<mj-head></mj-head>',
+            ],
 
             'malformed LOCKED section' => [
-        <<<HTML
+                <<<HTML
 <mjml><mj-body><!-- LOCKED_START --><mj-section><mj-text>Oops</mj-text></mj-section></mj-body></mjml>
 HTML,
-        <<<HTML
+                <<<HTML
 <mjml><mj-body><mj-section><mj-text>Theme</mj-text></mj-section></mj-body></mjml>
 HTML,
-        true,
-        '<mj-text>Oops</mj-text>'
-    ],
+                true,
+                '<mj-text>Oops</mj-text>',
+            ],
 
             'translation mode skips new unlocked' => [
-        <<<HTML
+                <<<HTML
 <mjml><mj-body><mj-section><mj-text>Content</mj-text></mj-section></mj-body></mjml>
 HTML,
-        <<<HTML
+                <<<HTML
 <mjml><mj-body>
   <!-- LOCKED_START --><mj-section><mj-text>LT1</mj-text></mj-section><!-- LOCKED_END -->
   <mj-section><mj-text>New Unlocked</mj-text></mj-section>
 </mj-body></mjml>
 HTML,
-        true,
-        '<mj-text>Content</mj-text>'
-    ],
+                true,
+                '<mj-text>Content</mj-text>',
+            ],
 
             'whitespace robustness in markers' => [
-        <<<HTML
+                <<<HTML
 <mjml><mj-body>
 <!--LOCKED_START--> <mj-section><mj-text>L1</mj-text></mj-section> <!--LOCKED_END-->
 <mj-section><mj-text>Content</mj-text></mj-section>
 </mj-body></mjml>
 HTML,
-        <<<HTML
+                <<<HTML
 <mjml><mj-body>
 <!-- LOCKED_START --><mj-section><mj-text>LT1</mj-text></mj-section><!-- LOCKED_END -->
 </mj-body></mjml>
 HTML,
-        false,
-        '<mj-text>LT1</mj-text>'
-    ],
+                false,
+                '<mj-text>LT1</mj-text>',
+            ],
 
             '20+ locked and unlocked segments stress test' => [
-        self::generateManySegments(20, false),
-        self::generateManySegments(25, true),
-        false,
-        '<mj-text>LT25</mj-text>'
-    ],
+                self::generateManySegments(20, false),
+                self::generateManySegments(25, true),
+                false,
+                '<mj-text>LT25</mj-text>',
+            ],
         ];
-
-
     }
-
-
-
 
     private static function generateManySegments(int $count, bool $isTheme): string
     {
         $segments = [];
-        $prefix = $isTheme ? 'LT' : 'L';
+        $prefix   = $isTheme ? 'LT' : 'L';
 
-        for ($i = 1; $i <= $count; $i++) {
+        for ($i = 1; $i <= $count; ++$i) {
             $segments[] = <<<HTML
 <!-- LOCKED_START --><mj-section><mj-text>{$prefix}{$i}</mj-text></mj-section><!-- LOCKED_END -->
 <mj-section><mj-text>A{$i}</mj-text></mj-section>
@@ -296,8 +272,7 @@ $bodyContent
 HTML;
     }
 
-
-    public function testExtraLockedBlocksAreDropped()
+    public function testExtraLockedBlocksAreDropped(): void
     {
         $old = <<<HTML
 <mjml><mj-body>
@@ -329,8 +304,7 @@ HTML;
         $this->assertStringNotContainsString('<mj-text>L3</mj-text>', $result, 'Extra locked block from old email was not dropped!');
     }
 
-
-    public function testExtraLockedBlocksFromNewThemeAreAppended()
+    public function testExtraLockedBlocksFromNewThemeAreAppended(): void
     {
         $old = <<<HTML
 <mjml><mj-body>
@@ -368,39 +342,20 @@ HTML;
 
     public function testLoadThemeMjmlRejectsPathTraversal(): void
     {
-        $themesPath = realpath(__DIR__.'/../../../themes');
-        $this->assertNotFalse($themesPath);
-
-        $paramsHelper = $this->createMock(CoreParametersHelper::class);
-        $paramsHelper->method('get')->willReturnCallback(static function (string $key) use ($themesPath) {
-            return 'themes_path' === $key ? $themesPath : null;
-        });
+        $pathsHelper = $this->createMock(PathsHelper::class);
+        $pathsHelper->method('getThemesPath')->willReturn(sys_get_temp_dir());
 
         $service = new ThemeSwitchingService(
             new NullLogger(),
-            $paramsHelper,
+            $this->createMock(CoreParametersHelper::class),
             $this->createMock(EntityManagerInterface::class),
             new Environment(new ArrayLoader()),
-            new class implements ContainerInterface {
-                public function get(string $id)
-                {
-                    throw new \RuntimeException("Unexpected container->get('$id')");
-                }
-
-                public function has(string $id): bool
-                {
-                    return false;
-                }
-            },
-            null
+            $pathsHelper,
         );
 
         $method = new \ReflectionMethod(ThemeSwitchingService::class, 'loadThemeMjml');
-        $method->setAccessible(true);
 
         $this->expectException(\InvalidArgumentException::class);
         $method->invoke($service, '../../config/local.php');
     }
-
-
 }
